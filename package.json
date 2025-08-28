@@ -1,0 +1,25 @@
+{
+  "name": "game",
+  "version": "1.0.0",
+  "description": "A minimal ClojureScript + Reagent project",
+  "dependencies": {
+    "react": "17.0.1",
+    "react-dom": "17.0.1"
+  },
+  "devDependencies": {
+    "shadow-cljs": "2.14.2"
+  },
+  "scripts": {
+    "start": "npx shadow-cljs watch app"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clojurecraft/game.git"
+  },
+  "author": "Rafal Dittwald",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/clojurecraft/game/issues"
+  },
+  "homepage": "https://github.com/clojurecraft/game#readme"
+}

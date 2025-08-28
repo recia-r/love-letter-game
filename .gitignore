@@ -1,0 +1,69 @@
+# ClojureScript build artifacts
+target/
+.shadow-cljs/
+.calva/
+
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Dependency directories
+jars/
+lib/
+libs/
+
+# Build tool files
+pom.xml.asc
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Local configuration
+profiles.clj
+profiles.clj.bak
+
+# REPL history
+.cider-repl-history
+.lein-repl-history
+
+# ClojureScript REPL history
+.cljs-repl-history
+
+# Additional Clojure files
+.cpcache/
+.hgignore
+.nrepl-port
