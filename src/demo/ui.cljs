@@ -3,6 +3,50 @@
    [reagent.core :as r]
    [cljs.reader :as edn]))
 
+;; Centralized styles
+(def styles
+  {:card {:border "1px solid #ccc"
+          :padding "10px"
+          :margin "5px"
+          :border-radius "5px"
+          :text-align "center"
+          :min-width "80px"}
+
+   :card-name {:font-weight "bold"
+               :margin-bottom "5px"}
+
+   :card-value {:font-size "14px"
+                :color "#666"
+                :margin-bottom "5px"}
+
+   :card-ability {:font-size "12px"
+                  :margin-top "5px"}
+
+   :player-hands-container {:display "flex"
+                            :flex-direction "row"
+                            :justify-content "space-around"
+                            :align-items "flex-start"
+                            :flex-wrap "wrap"
+                            :gap "20px"
+                            :margin "20px 0"}
+
+   :player-hand-container {:flex "1"
+                           :min-width "200px"
+                           :max-width "300px"
+                           :border "2px solid #ddd"
+                           :border-radius "8px"
+                           :padding "15px"
+                           :margin "10px"
+                           :background-color "#f9f9f9"}
+
+   :cards-container {:display "flex"
+                     :flex-direction "row"
+                     :flex-wrap "wrap"
+                     :gap "10px"
+                     :justify-content "center"}
+
+   :start-game-buttons {:margin-top "20px"}})
+
 ;; Frontend state for Love Letter game
 (defonce app-state (r/atom {:players []
                             :current-player nil
@@ -10,7 +54,6 @@
                             :discard-pile []
                             :eliminated-players []
                             :round-winner nil
-                            :affection-tokens {}
                             :game-over false
                             :deck-count 0
                             :selected-card nil
@@ -33,11 +76,6 @@
                        :body form-data})
         (.then #(fetch-game-state!))
         (.catch #(js/console.error "Error starting game:" %)))))
-
-(defn start-default-game! []
-  (-> (js/fetch "http://localhost:8000/api/init-default" #js {:method "POST"})
-      (.then #(fetch-game-state!))
-      (.catch #(js/console.error "Error starting default game:" %))))
 
 (defn play-card! [card-id player-id target-player-id]
   (let [form-data (js/FormData.)]
@@ -65,21 +103,16 @@
 ;; UI Components
 (defn card-display [card]
   [:div.card
-   {:style {:border "1px solid #ccc"
-            :padding "10px"
-            :margin "5px"
-            :border-radius "5px"
-            :text-align "center"
-            :min-width "80px"}}
-   [:div.card-name (:name card)]
-   [:div.card-value (str "Value: " (:value card))]
-   [:div.card-ability {:style {:font-size "12px" :margin-top "5px"}}
-    (:ability card)]])
+   {:style (:card styles)}
+   [:div.card-name {:style (:card-name styles)} (:name card)]
+   [:div.card-value {:style (:card-value styles)} (str "Value: " (:value card))]
+   [:div.card-ability {:style (:card-ability styles)} (:ability card)]])
 
 (defn player-hand [player-id cards]
   [:div.player-hand
-   [:h3 (str "Player " player-id " Hand")]
+   [:h3 (str player-id)]
    [:div.cards
+    {:style (:cards-container styles)}
     (for [card cards]
       ^{:key (:id card)}
       [card-display card])]])
@@ -118,14 +151,9 @@
        {:on-click #(play-card! (:id (:selected-card @app-state)) current-player (:target-player @app-state))}
        "Confirm Play"]])])
 
-(defn game-status [affection-tokens round-winner game-over eliminated-players]
+(defn game-status [round-winner game-over eliminated-players]
   [:div.game-status
    [:h3 "Game Status"]
-   [:div.affection-tokens
-    [:h4 "Affection Tokens:"]
-    (for [[player tokens] affection-tokens]
-      ^{:key player}
-      [:p (str player ": " tokens)])]
 
    (when round-winner
      [:div.round-winner
@@ -151,10 +179,7 @@
             :id "player-names"}]
    [:button {:on-click #(let [names (.. (js/document.getElementById "player-names") -value)]
                           (start-game! names))}
-    "Start Game"]
-   [:div {:style {:margin-top "20px"}}
-    [:button {:on-click start-default-game!}
-     "Start Default Game (Alice, Bob, Charlie)"]]])
+    "Start Game"]])
 
 (defn app []
   (let [current-state @app-state
@@ -162,22 +187,31 @@
     [:div.app
      [:h1 "Love Letter Game"]
 
+     [:button {:on-click #(reset! app-state {:players []
+                                             :current-player nil
+                                             :player-hands {}
+                                             :discard-pile []
+                                             :eliminated-players []
+                                             :round-winner nil
+                                             :game-over false
+                                             :deck-count 0
+                                             :selected-card nil
+                                             :target-player nil
+                                             :game-started false})}
+      "New Game"]
+
      (if has-players
        [:div.game
-        [game-status (:affection-tokens current-state) (:round-winner current-state) (:game-over current-state) (:eliminated-players current-state)]
+        [game-status (:round-winner current-state) (:game-over current-state) (:eliminated-players current-state)]
 
         [:div.game-board
-         [:div.discard-pile
-          [:h3 "Discard Pile"]
-          (for [card (:discard-pile current-state)]
-            ^{:key (str (:id card) "-" (hash card))}
-            [card-display card])]
 
          [:div.player-hands
+          {:style (:player-hands-container styles)}
           (for [[player-id cards] (:player-hands current-state)]
             ^{:key player-id}
-            [:div
-             [:p (str "Player " player-id " - " (count cards) " cards")]
+            [:div.player-hand
+             {:style (:player-hand-container styles)}
              [player-hand player-id cards]])]
 
          [game-controls (:current-player current-state) (:player-hands current-state)]
@@ -185,19 +219,11 @@
          [:div.deck-info
           [:p (str "Cards remaining in deck: " (:deck-count current-state))]]]
 
-        [:button {:on-click #(reset! app-state {:players []
-                                                :current-player nil
-                                                :player-hands {}
-                                                :discard-pile []
-                                                :eliminated-players []
-                                                :round-winner nil
-                                                :affection-tokens {}
-                                                :game-over false
-                                                :deck-count 0
-                                                :selected-card nil
-                                                :target-player nil
-                                                :game-started false})}
-         "New Game"]]
+        [:div.discard-pile
+         [:h3 "Discard Pile"]
+         (for [card (:discard-pile current-state)]
+           ^{:key (str (:id card) "-" (hash card))}
+           [card-display card])]]
 
        [start-game-form])]))
 

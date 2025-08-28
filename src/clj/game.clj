@@ -13,7 +13,6 @@
                            :discard-pile []
                            :eliminated-players #{}
                            :round-winner nil
-                           :affection-tokens {}
                            :game-over false}))
 
 ;; Card definitions based on Love Letter rules
@@ -56,12 +55,8 @@
              :discard-pile []
              :eliminated-players #{}
              :round-winner nil
-             :affection-tokens (zipmap players (repeat 0))
-             :game-over false})))
 
-;; Initialize with a default game for testing
-(defn init-default-game []
-  (start-new-game ["Alice" "Bob" "Charlie"]))
+             :game-over false})))
 
 (defn draw-card [player-id]
   (let [current-state @game-state
@@ -158,7 +153,6 @@
       (= (count active-players) 1)
       (do
         (swap! game-state assoc :round-winner (first active-players))
-        (swap! game-state update-in [:affection-tokens (first active-players)] inc)
         true)
 
       ;; No cards left in deck - highest value wins
@@ -166,33 +160,23 @@
       (let [remaining-hands (select-keys (:player-hands current-state) active-players)
             highest-player (apply max-key #(:value (val %)) remaining-hands)]
         (swap! game-state assoc :round-winner (key highest-player))
-        (swap! game-state update-in [:affection-tokens (key highest-player)] inc)
         true)
 
       :else false)))
 
 (defn start-new-round []
   (let [current-state @game-state
-        players (:players current-state)
-        required-tokens (case (count players)
-                          2 7
-                          3 5
-                          4 4)
-        winner (some #(when (>= (get (:affection-tokens current-state) %) required-tokens) %) players)]
-
-    (if winner
-      ;; Game over
-      (swap! game-state assoc :game-over true :round-winner winner)
-      ;; Start new round
-      (let [initial-setup (deal-initial-cards players)]
-        (swap! game-state assoc
-               :deck (:deck initial-setup)
-               :hidden-card (:hidden-card initial-setup)
-               :player-hands (:player-hands initial-setup)
-               :discard-pile []
-               :eliminated-players #{}
-               :round-winner nil
-               :current-player 0)))))
+        players (:players current-state)]
+    ;; Start new round
+    (let [initial-setup (deal-initial-cards players)]
+      (swap! game-state assoc
+             :deck (:deck initial-setup)
+             :hidden-card (:hidden-card initial-setup)
+             :player-hands (:player-hands initial-setup)
+             :discard-pile []
+             :eliminated-players #{}
+             :round-winner nil
+             :current-player 0))))
 
 ;; API functions
 (defn get-game-state []
@@ -205,7 +189,7 @@
      :discard-pile (:discard-pile state)
      :eliminated-players (vec (:eliminated-players state))
      :round-winner (:round-winner state)
-     :affection-tokens (:affection-tokens state)
+
      :game-over (:game-over state)
      :deck-count (count (:deck state))}))
 
@@ -279,13 +263,6 @@
 
     (and (= (:uri request) "/api/start-game") (= (:request-method request) :post))
     (handle-start-game request)
-
-    (and (= (:uri request) "/api/init-default") (= (:request-method request) :post))
-    (do
-      (init-default-game)
-      {:status 200
-       :headers {"Content-Type" "application/json"}
-       :body (pr-str {:success true})})
 
     (and (= (:uri request) "/api/play-card") (= (:request-method request) :post))
     (handle-play-card request)
