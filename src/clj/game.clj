@@ -6,31 +6,33 @@
    [ring.util.response :refer [file-response]]
    [clojure.string :refer [split]]))
 
-(defonce game-state (atom {:players []
-                           :player-hands {}
-                           :current-player 0
-                           :deck []
-                           :discard-pile []
-                           :round-winner nil
-                           :game-over? false
-                           :must-play? false}))
+(defonce game-state (atom {:state/players []
+                           :state/player-hands {}
+                           :state/current-player 0
+                           :state/deck []
+                           :state/discard-pile []
+                           :state/round-winner nil
+                           :state/game-over? false
+                           :state/must-play? false}))
 
-;; Card definitions based on Love Letter rules
+;; TODO - malli spec for state, could reuse for frontend too
+;; TODO - bug, if have two of same card, it removes both
+
 (def cards
-  [{:id 1 :name "Minion" :value 1 :count 5 :ability "Guess a non-Minion card in another player's hand. If correct, they are eliminated."}
-   {:id 2 :name "Abbot" :value 2 :count 2 :ability "Look at another player's hand."}
-   {:id 3 :name "Rogue" :value 3 :count 2 :ability "Compare hands with another player. Lower value is eliminated."}
-   {:id 4 :name "Knight" :value 4 :count 2 :ability "Protection from effects until your next turn."}
-   {:id 5 :name "Wizard" :value 5 :count 2 :ability "Force any player (including yourself) to discard their hand and draw a new card."}
-   {:id 6 :name "Fool" :value 6 :count 1 :ability "Trade hands with another player."}
-   {:id 7 :name "Queen" :value 7 :count 1 :ability "Must be discarded if you have Fool or Wizard."}
-   {:id 9 :name "King" :value 9 :count 1 :ability "If discarded, you are eliminated."}
-   {:id 0 :name "Princeling" :value 0 :count 1 :ability "At the end of the round, this card's value is 8"}])
+  [{:card/id 1 :card/name "Minion" :card/value 1 :card/count 5 :card/ability "Guess a non-Minion card in another player's hand. If correct, they are eliminated."}
+   {:card/id 2 :card/name "Abbot" :card/value 2 :card/count 2 :card/ability "Look at another player's hand."}
+   {:card/id 3 :card/name "Rogue" :card/value 3 :card/count 2 :card/ability "Compare hands with another player. Lower value is eliminated."}
+   {:card/id 4 :card/name "Knight" :card/value 4 :card/count 2 :card/ability "Protection from effects until your next turn."}
+   {:card/id 5 :card/name "Wizard" :card/value 5 :card/count 2 :card/ability "Force any player (including yourself) to discard their hand and draw a new card."}
+   {:card/id 6 :card/name "Fool" :card/value 6 :card/count 1 :card/ability "Trade hands with another player."}
+   {:card/id 7 :card/name "Queen" :card/value 7 :card/count 1 :card/ability "Must be discarded if you have Fool or Wizard."}
+   {:card/id 9 :card/name "King" :card/value 9 :card/count 1 :card/ability "If discarded, you are eliminated."}
+   {:card/id 0 :card/name "Princeling" :card/value 0 :card/count 1 :card/ability "At the end of the round, this card's value is 8"}])
 
 ;; Game logic functions
 (defn create-deck []
   (let [card-list (for [card cards
-                        _ (range (:count card))]
+                        _ (range (:card/count card))]
                     card)]
     (shuffle card-list)))
 
@@ -40,30 +42,30 @@
         remaining-deck (drop (count players) deck)
         hidden-card (first remaining-deck)
         final-deck (rest remaining-deck)]
-    {:deck final-deck
-     :hidden-card hidden-card
-     :player-hands (zipmap players (map vector initial-cards))}))
+    {:state/deck final-deck
+     :state/hidden-card hidden-card
+     :state/player-hands (zipmap players (map vector initial-cards))}))
 
 (defn new-game [player-names]
   (let [players (vec player-names)
         initial-setup (deal-initial-cards players)]
-    {:players players
-     :current-player 0
-     :deck (:deck initial-setup)
-     :hidden-card (:hidden-card initial-setup)
-     :player-hands (:player-hands initial-setup)
-     :discard-pile []
-     :round-winner nil
-     :game-over false
-     :must-play false}))
+    {:state/players players
+     :state/current-player 0
+     :state/deck (:state/deck initial-setup)
+     :state/hidden-card (:state/hidden-card initial-setup)
+     :state/player-hands (:state/player-hands initial-setup)
+     :state/discard-pile []
+     :state/round-winner nil
+     :state/game-over? false
+     :state/must-play? false}))
 
 (defn start-new-game [player-names]
   (reset! game-state (new-game player-names)))
 
 (defn draw-card [player-id]
   (let [current-state @game-state
-        deck (:deck current-state)
-        current-hand (get (:player-hands current-state) player-id)]
+        deck (:state/deck current-state)
+        current-hand (get (:state/player-hands current-state) player-id)]
     (if (empty? deck)
       nil
       (let [drawn-card (first deck)
@@ -72,27 +74,40 @@
                        (conj current-hand drawn-card)
                        [drawn-card])]
         (swap! game-state assoc
-               :deck remaining-deck
-               :player-hands (assoc (:player-hands current-state) player-id new-hand))
+               :state/deck remaining-deck
+               :state/player-hands (assoc (:state/player-hands current-state) player-id new-hand)
+               :state/must-play? true)
         drawn-card))))
+
+;; TODO for minion, this will be insufficient
+;; TODO it would be nice if each card was it's own fn
+;; TODO it would be nice if this was a pure fn (takes in state and returns state)
+
+(defn eliminated-player? [state player-id]
+  (empty? (get-in state [:state/player-hands player-id])))
+
+(defn eliminate-player [state player-id]
+  (assoc-in state [:state/player-hands player-id] []))
 
 (defn play-card [player-id card-to-play target-player-id]
   (let [current-state @game-state
-        player-hand (get (:player-hands current-state) player-id)
-        new-discard-pile (conj (:discard-pile current-state) card-to-play)
-        remaining-cards (remove #(= (:id %) (:id card-to-play)) player-hand)]
+        player-hand (get (:state/player-hands current-state) player-id) ;; TODO use get-in
+        new-discard-pile (conj (:state/discard-pile current-state) card-to-play)
+        ;; Remove only the specific card instance, not all cards with the same ID
+        ;; TODO doesn't work, clojure's notion of identity is different
+        remaining-cards (remove #(identical? % card-to-play) player-hand)]
 
     ;; Apply card effects
     ;; discard the card
-    (swap! game-state assoc-in [:player-hands player-id] remaining-cards)
-    (swap! game-state assoc-in [:discard-pile] new-discard-pile)
+    (swap! game-state assoc-in [:state/player-hands player-id] remaining-cards)
+    (swap! game-state assoc-in [:state/discard-pile] new-discard-pile)
 
     ;; apply the card effect
-    (case (:id card-to-play)
+    (case (:card/id card-to-play)
       1 ;; Minion
       (when target-player-id
-        (let [target-hand (get (:player-hands current-state) target-player-id)]
-          (when (and target-hand (not= (:id (first target-hand)) 1))
+        (let [target-hand (get (:state/player-hands current-state) target-player-id)]
+          (when (and target-hand (not= (:card/id (first target-hand)) 1))
             (swap! game-state eliminate-player target-player-id))))
       2 ;; Abbot
       (when target-player-id
@@ -100,42 +115,42 @@
 
       3 ;; Rogue
       (when target-player-id
-        (let [target-hand (get (:player-hands current-state) target-player-id)]
+        (let [target-hand (get (:state/player-hands current-state) target-player-id)]
           (when (and target-hand player-hand)
-            (let [player-card (first (remove #(= (:id %) (:id card-to-play)) player-hand))]
-              (if (< (:value player-card) (:value (first target-hand)))
-                (swap! game-state update :eliminated-players conj player-id)
-                (swap! game-state update :eliminated-players conj target-player-id))))))
+            (let [player-card (first (remove #(identical? % card-to-play) player-hand))]
+              (if (< (:card/value player-card) (:card/value (first target-hand)))
+                (swap! game-state eliminate-player player-id)
+                (swap! game-state eliminate-player target-player-id))))))
 
       4 ;; Knight
       nil
 
       5 ;; Wizard
       (when target-player-id
-        (let [target-hand (get (:player-hands current-state) target-player-id)]
+        (let [target-hand (get (:state/player-hands current-state) target-player-id)]
           (when target-hand
-            (if (= (:id (first target-hand)) 9) ;; King
-              (swap! game-state update :eliminated-players conj target-player-id)
-              (let [current-deck (:deck current-state)
+            (if (= (:card/id (first target-hand)) 9) ;; King
+              (swap! game-state update :state/eliminated-players conj target-player-id)
+              (let [current-deck (:state/deck current-state)
                     drawn-card (first current-deck)
                     remaining-deck (rest current-deck)]
                 (when drawn-card
                   (swap! game-state assoc
-                         :deck remaining-deck
-                         :player-hands (assoc (:player-hands current-state) target-player-id [drawn-card]))))))))
+                         :state/deck remaining-deck
+                         :state/player-hands (assoc (:state/player-hands current-state) target-player-id [drawn-card]))))))))
 
       6 ;; Fool
       (when target-player-id
-        (let [target-hand (get (:player-hands current-state) target-player-id)]
-          (swap! game-state assoc-in [:player-hands player-id] target-hand)
-          (swap! game-state assoc-in [:player-hands target-player-id] player-hand)))
+        (let [target-hand (get (:state/player-hands current-state) target-player-id)]
+          (swap! game-state assoc-in [:state/player-hands player-id] target-hand)
+          (swap! game-state assoc-in [:state/player-hands target-player-id] player-hand)))
 
       7 ;; Queen
             ;; Must be discarded if Fool or Wizard in hand
       nil
 
       9 ;; King
-      (swap! game-state update :eliminated-players conj player-id)
+      (swap! game-state update :state/eliminated-players conj player-id)
 
       0 ;; Princeling
       ;; No immediate effect - value becomes 8 at end of round
@@ -145,57 +160,66 @@
 
     ;; Update game state - player now has remaining cards after playing
     (swap! game-state assoc
-           :discard-pile new-discard-pile
-           :player-hands (assoc (:player-hands current-state) player-id remaining-cards)
-           :current-player (mod (inc (:current-player current-state)) (count (:players current-state))))))
+           :state/discard-pile new-discard-pile
+           :state/player-hands (assoc (:state/player-hands current-state) player-id remaining-cards)
+           :state/current-player (mod (inc (:state/current-player current-state)) (count (:state/players current-state)))
+           :state/must-play? false)))
 
 (defn check-round-end []
   (let [current-state @game-state
-        active-players (remove #(contains? (:eliminated-players current-state) %) (:players current-state))]
+        active-players (remove #(contains? (:state/eliminated-players current-state) %) (:state/players current-state))]
     (cond
-      ;; Only one player left - they win
+      ;; one player left
       (= (count active-players) 1)
       (do
-        (swap! game-state assoc :round-winner (first active-players))
+        (swap! game-state assoc :state/round-winner (first active-players))
         true)
 
       ;; No cards left in deck - highest value wins
-      (empty? (:deck current-state))
-      (let [remaining-hands (select-keys (:player-hands current-state) active-players)
-            highest-player (apply max-key #(:value (val %)) remaining-hands)]
-        (swap! game-state assoc :round-winner (key highest-player))
+      (empty? (:state/deck current-state))
+      (let [remaining-hands (select-keys (:state/player-hands current-state) active-players)
+            highest-player (apply max-key #(:card/value (val %)) remaining-hands)]
+        (swap! game-state assoc :state/round-winner (key highest-player))
         true)
 
       :else false)))
 
 (defn start-new-round []
   (let [current-state @game-state
-        players (:players current-state)]
+        players (:state/players current-state)
+        initial-setup (deal-initial-cards players)]
     ;; Start new round
-    (let [initial-setup (deal-initial-cards players)]
-      (swap! game-state assoc
-             :deck (:deck initial-setup)
-             :hidden-card (:hidden-card initial-setup)
-             :player-hands (:player-hands initial-setup)
-             :discard-pile []
-             :eliminated-players #{}
-             :round-winner nil
-             :current-player 0))))
+    (swap! game-state assoc
+           :state/deck (:state/deck initial-setup)
+           :state/hidden-card (:state/hidden-card initial-setup)
+           :state/player-hands (:state/player-hands initial-setup)
+           :state/discard-pile []
+           :state/eliminated-players #{}
+           :state/round-winner nil
+           :state/current-player 0
+           :state/must-play? false)))
+
+;; TODO all of above would ideally be in a seperate namespace
+;; TODO should write some tests for just the game logic (ie. no http)
 
 ;; API functions
 (defn get-game-state []
   (let [state @game-state
-        players (:players state)]
+        players (:state/players state)]
     {:players players
-     :current-player (when (and (seq players) (< (:current-player state) (count players)))
-                       (nth players (:current-player state)))
-     :player-hands (:player-hands state)
-     :discard-pile (:discard-pile state)
-     :eliminated-players (vec (:eliminated-players state))
-     :round-winner (:round-winner state)
+     :current-player (when (and (seq players) (< (:state/current-player state) (count players)))
+                       (nth players (:state/current-player state)))
+     :player-hands (:state/player-hands state)
+     :discard-pile (:state/discard-pile state)
+     :eliminated-players (vec (:state/eliminated-players state))
+     :round-winner (:state/round-winner state)
 
-     :game-over (:game-over state)
-     :deck-count (count (:deck state))}))
+     :game-over (:state/game-over? state)
+     :deck-count (count (:state/deck state))
+     :must-play (:state/must-play? state)}))
+
+;; TODO - use malli to spec out the endpoints, to avoid this mess of nested ifs
+;; TODO - should check if the move that is submitted via http is legal
 
 (defn handle-start-game [request]
   (let [params (:params request)
@@ -218,8 +242,8 @@
     (if (and player-id card-id-str)
       (let [card-id (Integer/parseInt card-id-str)
             current-state @game-state
-            player-hand (get (:player-hands current-state) player-id)
-            card-to-play (first (filter #(= (:id %) card-id) player-hand))]
+            player-hand (get (:state/player-hands current-state) player-id)
+            card-to-play (first (filter #(= (:card/id %) card-id) player-hand))]
         (if card-to-play
           (do
             (play-card player-id card-to-play target-player-id)
