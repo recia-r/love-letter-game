@@ -284,6 +284,9 @@
     (and (= (:uri request) "/app/main.js") (= (:request-method request) :get))
     (file-response "target/public/app/main.js")
 
+    (and (= (:uri request) "/main.css") (= (:request-method request) :get))
+    (file-response "public/main.css")
+
     (and (= (:uri request) "/api/game-state") (= (:request-method request) :get))
     {:status 200
      :headers {"Content-Type" "application/edn"}
