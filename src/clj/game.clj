@@ -6,14 +6,14 @@
    [ring.util.response :refer [file-response]]
    [clojure.string :refer [split]]))
 
-;; Love Letter game state
 (defonce game-state (atom {:players []
+                           :player-hands {}
                            :current-player 0
                            :deck []
                            :discard-pile []
-                           :eliminated-players #{}
                            :round-winner nil
-                           :game-over false}))
+                           :game-over? false
+                           :must-play? false}))
 
 ;; Card definitions based on Love Letter rules
 (def cards
@@ -44,20 +44,21 @@
      :hidden-card hidden-card
      :player-hands (zipmap players (map vector initial-cards))}))
 
-(defn start-new-game [player-names]
+(defn new-game [player-names]
   (let [players (vec player-names)
         initial-setup (deal-initial-cards players)]
-    (reset! game-state
-            {:players players
-             :current-player 0
-             :deck (:deck initial-setup)
-             :hidden-card (:hidden-card initial-setup)
-             :player-hands (:player-hands initial-setup)
-             :discard-pile []
-             :eliminated-players #{}
-             :round-winner nil
+    {:players players
+     :current-player 0
+     :deck (:deck initial-setup)
+     :hidden-card (:hidden-card initial-setup)
+     :player-hands (:player-hands initial-setup)
+     :discard-pile []
+     :round-winner nil
+     :game-over false
+     :must-play false}))
 
-             :game-over false})))
+(defn start-new-game [player-names]
+  (reset! game-state (new-game player-names)))
 
 (defn draw-card [player-id]
   (let [current-state @game-state
