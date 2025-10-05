@@ -17,14 +17,15 @@
 
 ;; Card definitions based on Love Letter rules
 (def cards
-  [{:id 1 :name "Guard" :value 1 :count 5 :ability "Guess a non-Guard card in another player's hand. If correct, they are eliminated."}
-   {:id 2 :name "Priest" :value 2 :count 2 :ability "Look at another player's hand."}
-   {:id 3 :name "Baron" :value 3 :count 2 :ability "Compare hands with another player. Lower value is eliminated."}
-   {:id 4 :name "Handmaid" :value 4 :count 2 :ability "Protection from effects until your next turn."}
-   {:id 5 :name "Prince" :value 5 :count 2 :ability "Force a player to discard their hand and draw a new card."}
-   {:id 6 :name "King" :value 6 :count 1 :ability "Trade hands with another player."}
-   {:id 7 :name "Countess" :value 7 :count 1 :ability "Must be discarded if you have King or Prince."}
-   {:id 8 :name "Princess" :value 8 :count 1 :ability "If discarded, you are eliminated."}])
+  [{:id 1 :name "Minion" :value 1 :count 5 :ability "Guess a non-Minion card in another player's hand. If correct, they are eliminated."}
+   {:id 2 :name "Abbot" :value 2 :count 2 :ability "Look at another player's hand."}
+   {:id 3 :name "Rogue" :value 3 :count 2 :ability "Compare hands with another player. Lower value is eliminated."}
+   {:id 4 :name "Knight" :value 4 :count 2 :ability "Protection from effects until your next turn."}
+   {:id 5 :name "Wizard" :value 5 :count 2 :ability "Force any player (including yourself) to discard their hand and draw a new card."}
+   {:id 6 :name "Fool" :value 6 :count 1 :ability "Trade hands with another player."}
+   {:id 7 :name "Queen" :value 7 :count 1 :ability "Must be discarded if you have Fool or Wizard."}
+   {:id 9 :name "King" :value 9 :count 1 :ability "If discarded, you are eliminated."}
+   {:id 0 :name "Princeling" :value 0 :count 1 :ability "At the end of the round, this card's value is 8"}])
 
 ;; Game logic functions
 (defn create-deck []
@@ -87,17 +88,16 @@
 
     ;; apply the card effect
     (case (:id card-to-play)
-      1 ;; Guard
+      1 ;; Minion
       (when target-player-id
         (let [target-hand (get (:player-hands current-state) target-player-id)]
           (when (and target-hand (not= (:id (first target-hand)) 1))
-            (swap! game-state update :eliminated-players conj target-player-id))))
-      2 ;; Priest
+            (swap! game-state eliminate-player target-player-id))))
+      2 ;; Abbot
       (when target-player-id
-              ;; Just reveal the card (no elimination)
         nil)
 
-      3 ;; Baron
+      3 ;; Rogue
       (when target-player-id
         (let [target-hand (get (:player-hands current-state) target-player-id)]
           (when (and target-hand player-hand)
@@ -106,15 +106,14 @@
                 (swap! game-state update :eliminated-players conj player-id)
                 (swap! game-state update :eliminated-players conj target-player-id))))))
 
-      4 ;; Handmaid
-            ;; Protection effect (simplified - just continue)
+      4 ;; Knight
       nil
 
-      5 ;; Prince
+      5 ;; Wizard
       (when target-player-id
         (let [target-hand (get (:player-hands current-state) target-player-id)]
           (when target-hand
-            (if (= (:id (first target-hand)) 8) ;; Princess
+            (if (= (:id (first target-hand)) 9) ;; King
               (swap! game-state update :eliminated-players conj target-player-id)
               (let [current-deck (:deck current-state)
                     drawn-card (first current-deck)
@@ -124,18 +123,22 @@
                          :deck remaining-deck
                          :player-hands (assoc (:player-hands current-state) target-player-id [drawn-card]))))))))
 
-      6 ;; King
+      6 ;; Fool
       (when target-player-id
         (let [target-hand (get (:player-hands current-state) target-player-id)]
           (swap! game-state assoc-in [:player-hands player-id] target-hand)
           (swap! game-state assoc-in [:player-hands target-player-id] player-hand)))
 
-      7 ;; Countess
-            ;; Must be discarded if King or Prince in hand
+      7 ;; Queen
+            ;; Must be discarded if Fool or Wizard in hand
       nil
 
-      8 ;; Princess
+      9 ;; King
       (swap! game-state update :eliminated-players conj player-id)
+
+      0 ;; Princeling
+      ;; No immediate effect - value becomes 8 at end of round
+      nil
 
       nil)
 
