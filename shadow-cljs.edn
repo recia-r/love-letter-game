@@ -2,10 +2,11 @@
  :dependencies [[reagent "1.2.0"]
                 [re-frame "1.3.0"]
                 [cljs-http "0.1.46"]]
- :dev-http {8085 ["public/"
+ #_#_:dev-http {8085 ["public/"
                   "target/public/"]}
  :builds {:app {:target :browser
                 :output-dir "target/public/app"
                 :asset-path "/app"
                 :modules {:main {:init-fn demo.core/init}}
-                :devtools {:after-load demo.core/reload!}}}}
+                :devtools {:after-load demo.core/reload!
+                           :watch-dir "public"}}}}
