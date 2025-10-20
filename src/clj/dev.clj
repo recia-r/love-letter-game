@@ -13,6 +13,8 @@
 
  (dd/eliminate-player {:state/player-hands {"Alice" [1] "Bob" [2]}} "Bob") := {:state/player-hands {"Alice" [1]}}
 
+ (dd/remove-card-from-hand {:state/player-hands {"Alice" [1 1] "Bob" [2]}} "Alice" 1) := {:state/player-hands {"Alice" [1] "Bob" [2]}}
+
  "Eliminating Player"
  (-> (dd/new-game ["Alice"])
      (dd/eliminated-player? "Alice"))
@@ -50,7 +52,30 @@
    (-> state
        (dd/play-card "Alice" card-to-play {:target-player-name "Bob"
                                            :guessed-card-value 1}))
-   :throws java.lang.AssertionError)
+   :throws java.lang.AssertionError
+
+   "after playing card, it is removed from the hand"
+   (-> state
+       (dd/play-card "Alice" card-to-play {:target-player-name "Bob"
+                                           :guessed-card-value 5})
+       (dd/player-hand "Alice"))
+   := [(dd/card-by-value 1)]
+
+   "Correct guess ends game"
+   (-> state
+       (dd/play-card "Alice" card-to-play {:target-player-name "Bob"
+                                           :guessed-card-value 5})
+       (dd/game-over?))
+   := true
+
+   "Winner is the only active player"
+   (-> state
+       (dd/play-card "Alice" card-to-play {:target-player-name "Bob"
+                                           :guessed-card-value 5})
+       (dd/game-winner))
+   := "Alice")
+
+
 
  nil)
 
