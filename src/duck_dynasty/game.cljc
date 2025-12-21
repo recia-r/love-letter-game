@@ -82,10 +82,8 @@
   (get-in state [:state/player-hands player-name]))
 
 (defn can-play-queen? [state player-name]
-  (let [hand (player-hand state player-name)
-        other-card (first (remove #(= 7 (:card/value %)) hand))
-        other-card-value (:card/value other-card)]
-    (contains? #{5 6} other-card-value)))
+  (let [other-card (first (remove #(= 7 (:card/value %)) (player-hand state player-name)))]
+    (contains? #{1 2 3 4 9 0} (:card/value other-card))))
 
 (defn player-card
   "Players other than the current player only ever have one card in their hand"

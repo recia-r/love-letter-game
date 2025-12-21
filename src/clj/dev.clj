@@ -27,6 +27,8 @@
  (dd/remove-card-from-hand-upon-play {:state/player-hands {"Alice" [1 1] "Bob" [2]}} "Alice" 1) := {:state/player-hands {"Alice" [1] "Bob" [2]}}
  (dd/add-card-to-discard-pile {:state/discard-pile [1]} 2) := {:state/discard-pile [1 2]}
 
+ (dd/can-play-queen? {:state/player-hands {"Alice" [{:card/value 5} {:card/value 7}]}} "Alice") := false
+
  "Eliminating Player"
  (-> (dd/new-game ["Alice"] (dd/create-deck))
      (dd/eliminated-player? "Alice"))
@@ -127,6 +129,17 @@
        (dd/play-card "Alice" (dd/card-by-value 5) {:target-player-name "Bob"})
        (dd/player-hand "Bob"))
    := [(dd/card-by-value 1)]
+
+   "playing queen not allowed if player has fool or wizard"
+   (-> (dd/new-game ["Alice" "Bob"] (fake-deck
+                                     6 ;; alice deal
+                                     2 ;; bob deal
+                                     3 ;; hidden
+                                     7 ;; alice draw
+                                     ))
+       (dd/draw-card "Alice")
+       (dd/play-card "Alice" (dd/card-by-value 6) {}))
+   :throws java.lang.AssertionError
 
    "Can't play card that is not in hand"
    (-> (dd/new-game ["Alice" "Bob"] (dd/create-deck))
