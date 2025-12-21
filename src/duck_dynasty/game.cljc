@@ -199,6 +199,7 @@
         (draw-card target-player-name))))
 
 (defn play-fool [state player-name {:keys [target-player-name]}]
+  {:pre [(contains? (set (targetable-players state 6)) target-player-name)]}
   (swap-cards-in-hands state player-name target-player-name))
 
 (defn play-queen [state player-name _extra-args]
@@ -229,25 +230,13 @@
         (advance-player))))
 
 
-;;  1) fix the front end
+;; 1) fix the front end
 
-;;  2) multiple rounds
+;; 2) multiple rounds
 
-;;  3) add more cards - knight, princeling
-;; how do we remember who has a knight in front?
-;;   keep track of seperate discard piles, fn that is has-knight-in-front?
-;;   have a state of player->has-knight-in-front?
-;;  also, protected? fn (use in play-minion, etc. or on the outside in some way)
+;; 3) end game with no eliminations (highest value card wins)
 
-;; 4) end game with no eliminations (highest value card wins)
-
-;; 5) add can-play? fn (queen + wizard/fool)
-
-
-
-
-
-;; make use of the malli schema to validate the state
+;; 4) make use of the malli schema to validate the state
 ;;     https://github.com/metosin/malli/blob/master/docs/function-schemas.md#defn-schemas
 
 
