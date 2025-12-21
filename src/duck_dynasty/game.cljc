@@ -25,9 +25,8 @@
                     card)]
     (shuffle card-list)))
 
-(defn deal-initial-cards [players]
-  (let [deck (create-deck)
-        initial-cards (take (count players) deck)
+(defn deal-initial-cards [players deck]
+  (let [initial-cards (take (count players) deck)
         remaining-deck (drop (count players) deck)
         hidden-card (first remaining-deck)
         final-deck (rest remaining-deck)]
@@ -55,6 +54,7 @@
    [:state/hidden-card Card]
    ;; just hands of active players
    [:state/player-hands [:map-of PlayerName [:vector {:min 1 :max 2} Card]]]
+   [:state/protected-players [:set PlayerName]]
    [:state/discard-pile [:vector Card]]
    [:state/rounds :int]
    [:state/round :int]
@@ -74,12 +74,18 @@
 
 (defn targetable-players [state card-value]
   (case (:card/targeting-rule (card-by-value card-value))
-    :others (filter #(not= % (:state/current-player state)) (active-players state))
-    :all (active-players state)
+    :others (remove (conj (:state/protected-players state) (:state/current-player state)) (active-players state))
+    :all (remove (:state/protected-players state) (active-players state))
     nil []))
 
 (defn player-hand [state player-name]
   (get-in state [:state/player-hands player-name]))
+
+(defn can-play-queen? [state player-name]
+  (let [hand (player-hand state player-name)
+        other-card (first (remove #(= 7 (:card/value %)) hand))
+        other-card-value (:card/value other-card)]
+    (contains? #{5 6} other-card-value)))
 
 (defn player-card
   "Players other than the current player only ever have one card in their hand"
@@ -101,14 +107,15 @@
 ;; take state and other parameters
 ;; return new state
 
-(defn new-game [player-names]
+(defn new-game [player-names deck]
   (let [players (vec player-names)
-        initial-setup (deal-initial-cards players)]
+        initial-setup (deal-initial-cards players deck)]
     {:state/players players
      :state/current-player (first players)
      :state/deck (:deck initial-setup)
      :state/hidden-card (:hidden-card initial-setup)
      :state/player-hands (:player-hands initial-setup)
+     :state/protected-players #{}
      :state/discard-pile []
      :state/rounds 10
      :state/round 1
@@ -140,6 +147,13 @@
 (defn remove-single-card-from-hand [state player-name]
   (update state :state/player-hands dissoc player-name))
 
+(defn swap-cards-in-hands [state player-name1 player-name2]
+  (let [hand1 (player-hand state player-name1)
+        hand2 (player-hand state player-name2)]
+    (-> state
+        (update :state/player-hands assoc player-name1 hand2)
+        (update :state/player-hands assoc player-name2 hand1))))
+
 (defn draw-card [state player-name]
   (let [deck (:state/deck state)
         current-hand (get (:state/player-hands state) player-name)
@@ -150,66 +164,86 @@
            :state/deck remaining-deck
            :state/player-hands (assoc (:state/player-hands state) player-name new-hand))))
 
-(defn play-minion [state _player-name _card {:keys [target-player-name guessed-card-value]}]
-  {:pre [(contains? minion-guessable-card-values guessed-card-value)]}
+(defn play-minion [state _player-name {:keys [target-player-name guessed-card-value]}]
+  {:pre [(contains? minion-guessable-card-values guessed-card-value)
+         (contains? (set (targetable-players state 1)) target-player-name)]}
   (let [target-players-card-value (:card/value (player-card state target-player-name))]
     (if (= target-players-card-value guessed-card-value)
       (eliminate-player state target-player-name)
       state)))
 
-(defn play-abbot [state player-name _card {:keys [target-player-name]}]
-  (let [target-player-card (player-card state target-player-name)
-        state (assoc state :state/abbot-reveal {:abbot-reveal/abbot-player-name player-name
-                                                :abbot-reveal/card target-player-card
-                                                :abbot-reveal/target-player-name target-player-name})]
-    state)) ;; TODO when player confirms seeing card, remove the reveal from state
+(defn play-abbot [state player-name {:keys [target-player-name]}]
+  {:pre [(contains? (set (targetable-players state 2)) target-player-name)]}
+  (let [target-player-card (player-card state target-player-name)]
+    (assoc state :state/abbot-reveal {:abbot-reveal/abbot-player-name player-name
+                                      :abbot-reveal/card target-player-card
+                                      :abbot-reveal/target-player-name target-player-name}))) ;; TODO when player confirms seeing card, remove the reveal from state
 
-(defn play-rogue [state player-name card {:keys [target-player-name]}]
+(defn play-rogue [state player-name {:keys [target-player-name]}]
+  {:pre [(contains? (set (targetable-players state 3)) target-player-name)]}
   (let [target-player-card (player-card state target-player-name)
         player-card (player-card state player-name)]
     (if (< (:card/value target-player-card) (:card/value player-card))
       (eliminate-player state target-player-name)
       (eliminate-player state player-name))))
 
-(defn play-wizard [state player-name card {:keys [target-player-name]}]
-  {:pre [(contains? (set (targetable-players state (:card/value card))) target-player-name)]} ;; REVIEW should this be a precondition on the action cards?
-  (let [target-player-card (player-card state target-player-name)
-        state (remove-single-card-from-hand state target-player-name)
-        state (add-card-to-discard-pile state target-player-card)
-        state (draw-card state target-player-name)]
-    state))
+(defn play-knight [state player-name _extra-args]
+  (update state :state/protected-players conj player-name))
+
+(defn play-wizard [state _player-name {:keys [target-player-name]}]
+  {:pre [(contains? (set (targetable-players state 5)) target-player-name)]}
+  (let [target-player-card (player-card state target-player-name)]
+    (-> state
+        (remove-single-card-from-hand target-player-name)
+        (add-card-to-discard-pile target-player-card)
+        (draw-card target-player-name))))
+
+(defn play-fool [state player-name {:keys [target-player-name]}]
+  (swap-cards-in-hands state player-name target-player-name))
+
+(defn play-queen [state player-name _extra-args]
+  {:pre [(can-play-queen? state player-name)]}
+  state)
+
+(defn play-king [state player-name _extra-args]
+  (eliminate-player state player-name))
+
+(defn play-princeling [state _player-name _extra-args]
+  state)
 
 (defn play-card [state player-name card extra-args]
   {:pre [(contains? (set (player-hand state player-name)) card)]}
   (let [state (remove-card-from-hand-upon-play state player-name card)
-        state (add-card-to-discard-pile state card)]
+        state (add-card-to-discard-pile state card)
+        state (update state :state/protected-players disj player-name)]
     (-> (case (:card/value card)
-          1 (play-minion state player-name card extra-args)
-          2 (play-abbot state player-name card extra-args)
-          3 (play-rogue state player-name card extra-args)
-          #_#_4 nil
-          5 (play-wizard state player-name card extra-args)
-          #_#_6 (play-fool state player card extra-args)
-          7 nil
-          #_#_9 (play-king state player card extra-args)
-          #_#_0 nil)
+          1 (play-minion state player-name extra-args)
+          2 (play-abbot state player-name extra-args)
+          3 (play-rogue state player-name extra-args)
+          4 (play-knight state player-name extra-args)
+          5 (play-wizard state player-name extra-args)
+          6 (play-fool state player-name extra-args)
+          7 (play-queen state player-name extra-args)
+          9 (play-king state player-name extra-args)
+          0 (play-princeling state player-name extra-args))
         (advance-player))))
 
-;; 1) end-to-end game (with just two cards implemented), in this namespace and tested
-;;     DONE after playing card, it is removed from the hand
-;;     DONE is game over? 
-;;     DONE who is winner?
-;;     rounds
-;;     DONE player can only play a card that they have
-;;     DONE check if have two of same card, does it remove both  (shouldn't)
 
-;; 1) actually can play a full round of game
+;;  1) fix the front end
 
-;;  2) fix the front end
+;;  2) multiple rounds
 
-;;  3) multiple rounds
+;;  3) add more cards - knight, princeling
+;; how do we remember who has a knight in front?
+;;   keep track of seperate discard piles, fn that is has-knight-in-front?
+;;   have a state of player->has-knight-in-front?
+;;  also, protected? fn (use in play-minion, etc. or on the outside in some way)
 
-;;  4) add more cards
+;; 4) end game with no eliminations (highest value card wins)
+
+;; 5) add can-play? fn (queen + wizard/fool)
+
+
 
 
 
@@ -217,7 +251,6 @@
 ;;     https://github.com/metosin/malli/blob/master/docs/function-schemas.md#defn-schemas
 
 
-;; how do we remember who has a knight in front?
-;;   keep track of seperate discard piles, fn that is has-knight-in-front?
-;;   have a state of player->has-knight-in-front?
-;;  also, targetable-players fn
+
+
+
