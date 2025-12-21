@@ -48,10 +48,10 @@ Love Letter is a card game where players try to win the affection of a princess 
 
 3. In another terminal, start the frontend:
    ```bash
-   npx shadow-cljs watch demo
+   npx shadow-cljs watch app
    ```
 
-4. Open your browser to `http://localhost:8000`
+4. Open your browser to `http://localhost:8200`
 
 ## Game Flow
 
