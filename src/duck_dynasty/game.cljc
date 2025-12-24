@@ -2,15 +2,15 @@
 
 ;; DATA
 (def cards
-  [{:card/value 1 :card/name "Minion"     :card/targeting-rule :others :card/count 5 :card/ability "Guess a non-Minion card in another player's hand. If correct, they are eliminated."}
-   {:card/value 2 :card/name "Abbot"      :card/targeting-rule :others :card/count 2 :card/ability "Look at another player's hand."}
-   {:card/value 3 :card/name "Rogue"      :card/targeting-rule :others :card/count 2 :card/ability "Compare hands with another player. Lower value is eliminated."}
-   {:card/value 4 :card/name "Knight"     :card/targeting-rule nil     :card/count 2 :card/ability "Protection from effects until your next turn."}
-   {:card/value 5 :card/name "Wizard"     :card/targeting-rule :all    :card/count 2 :card/ability "Force any player (including yourself) to discard their hand and draw a new card."}
-   {:card/value 6 :card/name "Fool"       :card/targeting-rule :others :card/count 1 :card/ability "Trade hands with another player."}
-   {:card/value 7 :card/name "Queen"      :card/targeting-rule nil     :card/count 1 :card/ability "Must be discarded if you have Fool or Wizard."}
-   {:card/value 9 :card/name "King"       :card/targeting-rule nil     :card/count 1 :card/ability "If discarded, you are eliminated."}
-   {:card/value 0 :card/name "Princeling" :card/targeting-rule nil     :card/count 1 :card/ability "At the end of the round, this card's value is 8"}])
+  [{:card/value 1 :card/name "Minion"     :card/targeting-rule :others :card/count 5 :card/end-value 1 :card/ability "Guess a non-Minion card in another player's hand. If correct, they are eliminated."}
+   {:card/value 2 :card/name "Abbot"      :card/targeting-rule :others :card/count 2 :card/end-value 2 :card/ability "Look at another player's hand."}
+   {:card/value 3 :card/name "Rogue"      :card/targeting-rule :others :card/count 2 :card/end-value 3 :card/ability "Compare hands with another player. Lower value is eliminated."}
+   {:card/value 4 :card/name "Knight"     :card/targeting-rule nil     :card/count 2 :card/end-value 4 :card/ability "Protection from effects until your next turn."}
+   {:card/value 5 :card/name "Wizard"     :card/targeting-rule :all    :card/count 2 :card/end-value 5 :card/ability "Force any player (including yourself) to discard their hand and draw a new card."}
+   {:card/value 6 :card/name "Fool"       :card/targeting-rule :others :card/count 1 :card/end-value 6 :card/ability "Trade hands with another player."}
+   {:card/value 7 :card/name "Queen"      :card/targeting-rule nil     :card/count 1 :card/end-value 7 :card/ability "Must be discarded if you have Fool or Wizard."}
+   {:card/value 9 :card/name "King"       :card/targeting-rule nil     :card/count 1 :card/end-value 9 :card/ability "If discarded, you are eliminated."}
+   {:card/value 0 :card/name "Princeling" :card/targeting-rule nil     :card/count 1 :card/end-value 8 :card/ability "At the end of the round, this card's value is 8"}])
 
 (def minion-guessable-card-values #{2 3 4 5 6 7 9 0})
 
@@ -42,7 +42,7 @@
   [:map
    [:card/value :int]
    [:card/name :string]
-   [:card/has-target? :boolean]
+   [:card/targeting-rule [:enum :others :all :nil]]
    [:card/count :int]
    [:card/ability :string]])
 
@@ -95,11 +95,27 @@
   (nil? (player-card state player-name)))
 
 (defn game-over? [state]
-  (= (count (active-players state)) 1))
+  (or (= (count (active-players state)) 1) ;; only one player left
+      (empty? (:state/deck state)))) ;; no cards left in deck
 
-(defn game-winner [state]
-  (when (game-over? state)
-    (first (active-players state))))
+(defn player-with-highest-value-card [state]
+  (->> (:state/player-hands state) 
+       (map (fn [[player-name [card]]] [(:card/end-value card) player-name]))
+       (group-by first) 
+       (apply max-key first) 
+       second 
+       (map second))) 
+
+(defn game-winners [state]
+  (cond
+    (empty? (:state/deck state))
+    (player-with-highest-value-card state)
+
+    (= (count (active-players state)) 1)
+    (active-players state)
+
+    :else nil))
+
 
 ;; STATE ACTIONS
 ;; take state and other parameters
@@ -232,9 +248,7 @@
 
 ;; 2) multiple rounds
 
-;; 3) end game with no eliminations (highest value card wins)
-
-;; 4) make use of the malli schema to validate the state
+;; 3) make use of the malli schema to validate the state
 ;;     https://github.com/metosin/malli/blob/master/docs/function-schemas.md#defn-schemas
 
 
