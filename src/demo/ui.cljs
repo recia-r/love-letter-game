@@ -56,11 +56,21 @@
             :padding "10px"
             :margin "5px"
             :border-radius "4px"
-            :background-color "#f9f9f9"}}
-   [:div.card-name {:style {:font-weight "bold"}} (:card/name card)]
-   [:div.card-value {:style {:font-size "0.9em" :color "#666"}}
+            :background-color "#f9f9f9"
+            :display "flex"
+            :flex-direction "column"
+            :align-items "center"
+            :max-width "200px"}}
+   [:img {:src (str "/card/" (:card/value card) ".jpg")
+          :alt (:card/name card)
+          :style {:width "100%"
+                  :height "auto"
+                  :border-radius "4px"
+                  :margin-bottom "10px"}}]
+   [:div.card-name {:style {:font-weight "bold" :text-align "center"}} (:card/name card)]
+   [:div.card-value {:style {:font-size "0.9em" :color "#666" :text-align "center"}}
     "Value: " (:card/value card)]
-   [:div.card-ability {:style {:font-size "0.8em" :color "#888" :margin-top "5px"}}
+   [:div.card-ability {:style {:font-size "0.8em" :color "#888" :margin-top "5px" :text-align "center"}}
     (:card/ability card)]])
 
 (defn player-hand-component [state player-name]

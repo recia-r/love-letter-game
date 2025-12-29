@@ -22,6 +22,11 @@
     (and (= (:uri request) "/main.css") (= (:request-method request) :get))
     (file-response "public/main.css")
 
+    (and (str/starts-with? (:uri request) "/card/") (= (:request-method request) :get))
+    (let [filename (str/replace (:uri request) #"^/card/" "") 
+          image-path (str "resources/cardimage/" filename)]
+      (file-response image-path))
+
     (and (= (:uri request) "/api/game-state") (= (:request-method request) :get))
     {:status 200
      :headers {"Content-Type" "application/edn"
