@@ -168,7 +168,7 @@
   [:<>
    [:div.actions
     {:style {:margin-top "30px" :text-align "center"}}
-    [:button {:on-click #(start-game ["Alice" "Bob"])
+    [:button {:on-click #(start-game ["Micah" "Recia"])
               :style {:padding "10px 20px"
                       :background-color "#2196F3"
                       :color "white"
@@ -183,7 +183,7 @@
                :margin "0 auto"
                :padding "20px"
                :font-family "Arial, sans-serif"}}
-      [:h1 {:style {:text-align "center" :color "#333"}} "Love Letter Game"]
+      [:h1 {:style {:text-align "center" :color "#333"}} "Duck Dynasty Game"]
       [game-status-component state]
       [current-player-component state]
       [:div.all-players
