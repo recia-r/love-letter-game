@@ -46,6 +46,18 @@
           (.catch (fn [error]
                     (js/console.error "Error playing card:" error)))))))
 
+(defn draw-card-api [player-name]
+  (let [form-data (doto (js/FormData.)
+                    (.append "player" player-name))
+        options (clj->js {:method "POST"
+                          :body form-data})]
+    (-> (js/fetch "/api/draw-card" options)
+        (.then (fn [response] (.text response)))
+        (.then (fn [edn-text]
+                 (reset! game-state (reader/read-string edn-text))))
+        (.catch (fn [error]
+                  (js/console.error "Error drawing card:" error))))))
+
 (defn init []
   ;; Initialize a new game with two players
   (fetch-game-state))
@@ -66,25 +78,34 @@
           :style {:width "100%"
                   :height "auto"
                   :border-radius "4px"
-                  :margin-bottom "10px"}}]
-   [:div.card-name {:style {:font-weight "bold" :text-align "center"}} (:card/name card)]
-   [:div.card-value {:style {:font-size "0.9em" :color "#666" :text-align "center"}}
-    "Value: " (:card/value card)]
-   [:div.card-ability {:style {:font-size "0.8em" :color "#888" :margin-top "5px" :text-align "center"}}
-    (:card/ability card)]])
+                  :margin-bottom "10px"}}]])
 
 (defn player-hand-component [state player-name]
-  (let [hand (dd/player-hand state player-name)]
+  (let [hand (dd/player-hand state player-name)
+        is-current-player? (= player-name (:state/current-player state))
+        has-one-card? (= (count hand) 1)]
     [:div.player-hand
      {:style {:margin "10px 0"}}
-     [:h3 (str player-name "'s Hand")]
      (if (empty? hand)
        [:div "No cards (eliminated)"]
        [:div.cards
-        {:style {:display "flex" :flex-wrap "wrap"}}
+        {:style {:display "flex" :flex-wrap "wrap" :align-items "center"}}
         (for [card hand]
           ^{:key (str (:card/value card) "-" (:card/name card))}
-          [card-component card])])]))
+          [card-component card])
+        (when (and is-current-player? has-one-card?)
+          [:img {:src "/card/duckcardback.png"
+                 :alt "Draw Card"
+                 :on-click #(draw-card-api player-name)
+                 :style {:width "200px"
+                         :height "auto"
+                         :margin-left "10px"
+                         :cursor "pointer"
+                         :border-radius "4px"
+                         :border "2px solid #4CAF50"
+                         :transition "transform 0.2s"}
+                 :on-mouse-enter #(set! (-> % .-target .-style .-transform) "scale(1.05)")
+                 :on-mouse-leave #(set! (-> % .-target .-style .-transform) "scale(1)")}])])]))
 
 ;; TODO - make smaller components e.g. for target and guess
 ;; do not pass state around - below should not get state as an argument, should get fns that alter state (state defined in top level component)
@@ -92,7 +113,7 @@
 
 (defn play-card-form [state player-name card]
   (let [target-players (dd/targetable-players state (:card/value card))
-        needs-target? (not (nil? (:card/targeting-rule card))) 
+        needs-target? (not (nil? (:card/targeting-rule card)))
         needs-guess? (= (:card/value card) 1) ; Minion needs a guess
         target (r/atom (first target-players))
         guessed-value (r/atom 2)]
@@ -192,15 +213,7 @@
                :margin "0 auto"
                :padding "20px"
                :font-family "Arial, sans-serif"}}
-      [:h1 {:style {:text-align "center" :color "#333"}} "Duck Dynasty Game"]
       [game-status-component state]
-      [current-player-component state]
-      [:div.all-players
-       {:style {:margin-top "30px"}}
-       [:h2 "All Players"]
-       (for [player (dd/active-players state)]
-         ^{:key player}
-         [:div {:style {:margin-bottom "20px"}}
-          [player-hand-component state player]])]]
+      [current-player-component state]]
      [:div "Loading game state..."])])
 
