@@ -26,13 +26,13 @@
 
  (dd/can-play-queen? {:state/player-hands {"Alice" [{:card/value 5} {:card/value 7}]}} "Alice") := false
 
- (dd/player-with-highest-value-card {:state/player-hands {"Alice" [{:card/end-value 5}]
-                                                          "Bob" [{:card/end-value 4}]
-                                                          "Charlie" [{:card/end-value 5}]}}) := ["Alice" "Charlie"]
+ (dd/players-with-highest-value-card {:state/player-hands {"Alice" [{:card/end-value 5}]
+                                                           "Bob" [{:card/end-value 4}]
+                                                           "Charlie" [{:card/end-value 5}]}}) := ["Alice" "Charlie"]
 
- (dd/player-with-highest-value-card {:state/player-hands {"Alice" [{:card/end-value 7}]
-                                                          "Bob" [{:card/end-value 5}]
-                                                          "Charlie" [{:card/end-value 9}]}}) := ["Charlie"]
+ (dd/players-with-highest-value-card {:state/player-hands {"Alice" [{:card/end-value 7}]
+                                                           "Bob" [{:card/end-value 5}]
+                                                           "Charlie" [{:card/end-value 9}]}}) := ["Charlie"]
 
  "Eliminating Player"
  (-> (dd/new-game ["Alice"] (dd/create-deck))
@@ -141,6 +141,19 @@
      (dd/player-hand "Bob"))
  := [(dd/card-by-value 1)] ;; bob should have drawn a 1
 
+ "playing fool swaps hands with target player"
+ (-> (dd/new-game ["Alice" "Bob"] (fake-deck
+                                   1 ;; alice deal
+                                   2 ;; bob deal
+                                   1 ;; hidden
+                                   6 ;; alice draw
+                                   5 ;; bob draw
+                                   ))
+     (dd/draw-card "Alice")
+     (dd/play-card "Alice" (dd/card-by-value 6) {:target-player-name "Bob"})
+     (dd/player-hand "Alice"))
+ := [(dd/card-by-value 2)] ;; alice should have swapped hands with bob
+
  "playing queen not allowed if player has fool or wizard"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck
                                    6 ;; alice deal
@@ -180,21 +193,16 @@
 
  "Playing full round of game"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck
-                                   1 ;; alice draw
-                                   5 ;; bob draw
+                                   1 ;; alice deal
+                                   5 ;; bob deal
                                    4 ;; hidden
-                                   2 ;; alice play 1
-                                   2 ;; bob play 1
+                                   2 ;; alice draw
+                                   2 ;; bob draw
                                    ))
-       ;; play 1
      (dd/draw-card  "Alice")
-     #_(assoc-in [:state/player-hands "Alice"] [(dd/card-by-value 1) (dd/card-by-value 2)]) ;; force Alice to have this hand
      (dd/play-card "Alice" (dd/card-by-value 2) {:target-player-name "Bob"})
-       ;; play 2
      (dd/draw-card "Bob")
-     #_(assoc-in [:state/player-hands "Bob"] [(dd/card-by-value 5) (dd/card-by-value 2)]) ;; force Bob to have this hand
      (dd/play-card "Bob" (dd/card-by-value 2) {:target-player-name "Alice"})
-       ;; play 3
      (dd/play-card "Alice" (dd/card-by-value 1) {:target-player-name "Bob"
                                                  :guessed-card-value 5})
      (dd/game-winners))

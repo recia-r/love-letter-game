@@ -86,9 +86,13 @@
           ^{:key (str (:card/value card) "-" (:card/name card))}
           [card-component card])])]))
 
+;; TODO - make smaller components e.g. for target and guess
+;; do not pass state around - below should not get state as an argument, should get fns that alter state (state defined in top level component)
+;; within each room, i'll have a game state. all components shuld get an immutable version of state (and fns should alter state)
+
 (defn play-card-form [state player-name card]
   (let [target-players (dd/targetable-players state (:card/value card))
-        needs-target? (seq target-players)
+        needs-target? (not (nil? (:card/targeting-rule card))) 
         needs-guess? (= (:card/value card) 1) ; Minion needs a guess
         target (r/atom (first target-players))
         guessed-value (r/atom 2)]
@@ -156,10 +160,15 @@
             :border-radius "8px"
             :margin "20px 0"}}
    (if (dd/game-over? state)
-     [:div
-      [:h2 {:style {:color "#856404"}} "Game Over!"]
-      [:p {:style {:font-size "1.2em" :font-weight "bold"}}
-       (str "Winner: " (dd/game-winner state))]]
+     (let [winners (dd/game-winners state)
+           winner-count (count winners)
+           winner-text (if (= winner-count 1)
+                         (first winners)
+                         (str/join " and " winners))]
+       [:div
+        [:h2 {:style {:color "#856404"}} "Game Over!"]
+        [:p {:style {:font-size "1.2em" :font-weight "bold"}}
+         (str "Winner" (when (> winner-count 1) "s") ": " winner-text)]])
      [:div
       [:p (str "Active Players: " (str/join ", " (dd/active-players state)))]
       [:p (str "Round: " (:state/round state) " / " (:state/rounds state))]])])

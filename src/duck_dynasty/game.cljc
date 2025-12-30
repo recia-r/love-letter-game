@@ -74,9 +74,12 @@
 
 (defn targetable-players [state card-value]
   (case (:card/targeting-rule (card-by-value card-value))
-    :others (remove (conj (:state/protected-players state) (:state/current-player state)) (active-players state))
-    :all (remove (:state/protected-players state) (active-players state))
+    :others (remove #(= % (:state/current-player state)) (active-players state))
+    :all (active-players state)
     nil []))
+
+(defn protected-player? [state target-player-name]
+  (contains? (:state/protected-players state) target-player-name))
 
 (defn player-hand [state player-name]
   (get-in state [:state/player-hands player-name]))
@@ -98,18 +101,18 @@
   (or (= (count (active-players state)) 1) ;; only one player left
       (empty? (:state/deck state)))) ;; no cards left in deck
 
-(defn player-with-highest-value-card [state]
-  (->> (:state/player-hands state) 
+(defn players-with-highest-value-card [state]
+  (->> (:state/player-hands state)
        (map (fn [[player-name [card]]] [(:card/end-value card) player-name]))
-       (group-by first) 
-       (apply max-key first) 
-       second 
-       (map second))) 
+       (group-by first)
+       (apply max-key first)
+       second
+       (map second)))
 
 (defn game-winners [state]
   (cond
     (empty? (:state/deck state))
-    (player-with-highest-value-card state)
+    (players-with-highest-value-card state)
 
     (= (count (active-players state)) 1)
     (active-players state)
@@ -230,18 +233,20 @@
   {:pre [(contains? (set (player-hand state player-name)) card)]}
   (let [state (remove-card-from-hand-upon-play state player-name card)
         state (add-card-to-discard-pile state card)
-        state (update state :state/protected-players disj player-name)]
-    (-> (case (:card/value card)
-          1 (play-minion state player-name extra-args)
-          2 (play-abbot state player-name extra-args)
-          3 (play-rogue state player-name extra-args)
-          4 (play-knight state player-name extra-args)
-          5 (play-wizard state player-name extra-args)
-          6 (play-fool state player-name extra-args)
-          7 (play-queen state player-name extra-args)
-          9 (play-king state player-name extra-args)
-          0 (play-princeling state player-name extra-args))
-        (advance-player))))
+        state (update state :state/protected-players disj player-name)
+        state (if (and (:card/targeting-rule card) (protected-player? state (:target-player-name extra-args)))
+                state
+                (-> (case (:card/value card)
+                      1 (play-minion state player-name extra-args)
+                      2 (play-abbot state player-name extra-args)
+                      3 (play-rogue state player-name extra-args)
+                      4 (play-knight state player-name extra-args)
+                      5 (play-wizard state player-name extra-args)
+                      6 (play-fool state player-name extra-args)
+                      7 (play-queen state player-name extra-args)
+                      9 (play-king state player-name extra-args)
+                      0 (play-princeling state player-name extra-args))))]
+    (advance-player state)))
 
 
 ;; 1) fix the front end
