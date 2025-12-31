@@ -2,7 +2,7 @@
   (:require
    [duck-dynasty.game :as dd]))
 
-
+(defonce state (atom {}))
 
 ;; ROOM
 
@@ -20,9 +20,6 @@
 
 
 ;; STATE
-
-(defn initial-state []
-  {})
 
 (defn add-room [state room]
   (assoc state (:room/id room) room))
@@ -66,28 +63,3 @@
         (add-room room)
         (start-game {:room-id (:room/id room)}))))
 
-;; HTTP HANDLER
-
-(defonce state (atom (initial-state)))
-
-#_(defn handler [request]
-  
-  ;; add handler for user-info (lists rooms a a user in  in or can join)
- ;; add handler for room-info (for a specific room)
-
-   (and (string/starts-with? (:uri request) "/api/rooms/") 
-        (= (:request-method request) :post))
-  (let [params (:params request)
-        f (case (:fn params)
-            "create-room-with-initial-player" create-room-with-initial-player
-            "join-room" join-room
-            "start-game" start-game
-            "end-game" end-game
-            "replay-game" replay-game)]
-    (swap! state f params)
-    {:status 200
-     :headers {"Content-Type" "application/edn"}
-     }))
-  
-
-  ;; fetch("/api/rooms/", {:fn "create-room-with-initial-player", :player "Alice"})

@@ -7,7 +7,7 @@
 ;; will need state - can mutate state or return a new state?
 
 (rcf/tests
- (let [state (rooms/initial-state)]
+ (let [state {}]
    (rooms/player-rooms state "Alice")
    := []
 
@@ -15,7 +15,7 @@
    := [])
 
 
- (let [state (rooms/initial-state)
+ (let [state {}
        state (rooms/create-room-with-initial-player state {:player-name "Alice"})]
    (rooms/player-rooms state "Alice")
    := [{:room/id _

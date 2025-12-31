@@ -36,6 +36,31 @@
       (and (= method :post) (= uri "/api/draw-card"))
       [:post "/api/draw-card" handlers/draw-card]
 
+      ;; Room routes
+      (and (= method :post) (= uri "/api/rooms/create"))
+      [:post "/api/rooms/create" handlers/create-room]
+
+      (and (= method :post) (= uri "/api/rooms/join"))
+      [:post "/api/rooms/join" handlers/join-room]
+
+      (and (= method :post) (= uri "/api/rooms/start-game"))
+      [:post "/api/rooms/start-game" handlers/start-room-game]
+
+      (and (= method :post) (= uri "/api/rooms/end-game"))
+      [:post "/api/rooms/end-game" handlers/end-room-game]
+
+      (and (= method :post) (= uri "/api/rooms/replay"))
+      [:post "/api/rooms/replay" handlers/replay-room-game]
+
+      (and (= method :get) (str/starts-with? uri "/api/rooms/room/"))
+      [:get "/api/rooms/room/*" handlers/get-room-info]
+
+      (and (= method :get) (str/starts-with? uri "/api/rooms/player/"))
+      [:get "/api/rooms/player/*" handlers/get-player-rooms]
+
+      (and (= method :get) (str/starts-with? uri "/api/rooms/joinable/"))
+      [:get "/api/rooms/joinable/*" handlers/get-joinable-rooms]
+
       :else nil)))
 
 (defn app [request]
