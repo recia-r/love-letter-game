@@ -4,7 +4,6 @@
    [hyperfiddle.rcf :as rcf]))
 
 (rcf/enable!)
-;; will need state - can mutate state or return a new state?
 
 (rcf/tests
  (let [state {}]
@@ -67,16 +66,6 @@
 
 
 (comment
-
-  (exists? state lobby-id))
-
-;; is it game-id or lobby-id
-;; or something selse?
-;; like a session (that starts a lobby?)
-
-;;  room
-;;   pre-game -> in-game -> post-game
-
 
 ;; /  if not "logged in"
 ;;     show a form to enter their name

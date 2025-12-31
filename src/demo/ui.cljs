@@ -182,14 +182,11 @@
             :margin "20px 0"}}
    (if (dd/game-over? state)
      (let [winners (dd/game-winners state)
-           winner-count (count winners)
-           winner-text (if (= winner-count 1)
-                         (first winners)
-                         (str/join " and " winners))]
+           winner-text (str/join " and " winners)]
        [:div
         [:h2 {:style {:color "#856404"}} "Game Over!"]
         [:p {:style {:font-size "1.2em" :font-weight "bold"}}
-         (str "Winner" (when (> winner-count 1) "s") ": " winner-text)]])
+         (str "Winner: " winner-text)]])
      [:div
       [:p (str "Active Players: " (str/join ", " (dd/active-players state)))]
       [:p (str "Round: " (:state/round state) " / " (:state/rounds state))]

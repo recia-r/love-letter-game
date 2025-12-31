@@ -46,7 +46,7 @@
            player
            (dd/card-by-value (parse-long card))
            {:target-player-name target
-            :guessed-card-value (parse-long guessed-value)})
+            :guessed-card-value (when guessed-value (parse-long guessed-value))})
     (return-game-state)))
 
 (defn draw-card [request]
@@ -72,8 +72,18 @@
     (return-rooms-state)))
 
 (defn start-room-game [request]
-  (let [{:strs [room-id]} (:params request)]
-    (swap! rooms/state rooms/start-game {:room-id (java.util.UUID/fromString room-id)})
+  (let [{:strs [room-id]} (:params request)
+        room-id-uuid (java.util.UUID/fromString room-id)
+        room (rooms/get-room @rooms/state {:room-id room-id-uuid})
+        player-names (vec (:room/players room))]
+    ;; Initialize the game state with the room's players
+    (reset! state (dd/new-game player-names (dd/create-deck)))
+    ;; Update the room state to in-game and store the game state
+    (swap! rooms/state
+           (fn [rooms-state]
+             (-> rooms-state
+                 (rooms/start-game {:room-id room-id-uuid})
+                 (update room-id-uuid assoc :room/game @state))))
     (return-rooms-state)))
 
 (defn end-room-game [request]
