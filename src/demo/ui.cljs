@@ -192,7 +192,8 @@
          (str "Winner" (when (> winner-count 1) "s") ": " winner-text)]])
      [:div
       [:p (str "Active Players: " (str/join ", " (dd/active-players state)))]
-      [:p (str "Round: " (:state/round state) " / " (:state/rounds state))]])])
+      [:p (str "Round: " (:state/round state) " / " (:state/rounds state))]
+      [:p (str "Remaining Cards: " (count (:state/deck state)))]])])
 
 (defn app []
   [:<>
