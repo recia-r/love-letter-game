@@ -100,25 +100,8 @@
                "Access-Control-Allow-Origin" "*"}
      :body (pr-str player-rooms-list)}))
 
-(defn get-joinable-rooms [request]
-  (let [uri (:uri request)
-        player-name (last (str/split uri #"/"))
-        joinable-rooms-list (rooms/joinable-rooms @rooms/state player-name)]
-    {:status 200
-     :headers {"Content-Type" "application/edn"
-               "Access-Control-Allow-Origin" "*"}
-     :body (pr-str joinable-rooms-list)}))
 
-#_(defn handler [request]
-    (and (string/starts-with? (:uri request) "/api/rooms/")
-         (= (:request-method request) :post))
-    (let [params (:params request)
-          f (case (:fn params)
-              "create-room-with-initial-player" create-room-with-initial-player
-              "join-room" join-room
-              "start-game" start-game
-              "end-game" end-game
-              "replay-game" replay-game)]
-      (swap! state f params)
-      {:status 200
-       :headers {"Content-Type" "application/edn"}}))
+(defn set-user-name [{:strs [user-name]}]
+  {:status 200
+   :cookies {"dd-user-name" {:value user-name
+                             :path "/"}}})

@@ -192,11 +192,40 @@
       [:p (str "Round: " (:state/round state) " / " (:state/rounds state))]
       [:p (str "Remaining Cards: " (count (:state/deck state)))]])])
 
+(defn get-user-name []
+  (let [cookies (-> js/document .-cookie (.split "; "))
+        name-cookie (first (filter #(.startsWith % "dd-user-name=") cookies))]
+    (when name-cookie
+      (subs name-cookie 13)))) ; "dd-user-name=" is 13 characters
+
+(defn set-user-name! [user-name]
+  (-> (js/fetch "/api/user/set-name" #js {:method "POST"
+                                          :body (doto (js/FormData.)
+                                                  (.append "user-name" user-name))})
+      (.catch (fn [error]
+                (js/console.error "Error setting user name:" error)))))
+
 (defn app []
-  [:<>
-   [:div.actions
-    {:style {:margin-top "30px" :text-align "center"}}
-    [:button {:on-click #(start-game ["Micah" "Recia"])
+  (let [username-input (r/atom (or (get-user-name) ""))]
+    (fn []
+      [:<>
+       [:div.actions
+        {:style {:margin-top "30px" :text-align "center"}}
+        [:div {:style {:margin-bottom "15px"}}
+         [:input {:type "text"
+                  :placeholder "Enter username"
+                  :value @username-input
+                  :on-change #(reset! username-input (-> % .-target .-value))
+                  :on-blur #(when (not (str/blank? @username-input))
+                              (set-user-name! @username-input))
+                  :style {:padding "8px 12px"
+                          :font-size "14px"
+                          :border "1px solid #ccc"
+                          :border-radius "4px"
+                          :width "200px"}}]]
+        [:button {:on-click #(when (not (str/blank? @username-input))
+                               (set-user-name! @username-input)
+                               (create-room-api @username-input))
               :style {:padding "10px 20px"
                       :background-color "#2196F3"
                       :color "white"

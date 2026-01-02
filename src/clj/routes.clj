@@ -4,6 +4,7 @@
    [clojure.string :as str]
    [org.httpkit.server :as http]
    [ring.middleware.params :refer [wrap-params]]
+   [ring.middleware.cookies :refer [wrap-cookies]]
    [ring.middleware.multipart-params :refer [wrap-multipart-params]]))
 
 (defn match-route [request]
@@ -12,7 +13,7 @@
     (cond
       ;; Static file routes
       (and (= method :get) (= uri "/"))
-      handlers/serve-index ;; show user name 
+      handlers/serve-index
 
       (and (= method :get) (= uri "/app/main.js"))
       handlers/serve-main-js
@@ -23,6 +24,10 @@
       (and (= method :get) (str/starts-with? uri "/card/"))
       handlers/serve-card-image
 
+      ;; PLAYER routes
+
+      (and (= method :post) (= uri "/api/user/set-name"))
+      handlers/set-user-name
 
       ;; GAME routes
       (and (= method :get) (= uri "/api/game-state"))
@@ -61,9 +66,9 @@
 
       :else nil)))
 
-    (handler-fn request)
 (defn app [request] 
   (if-let [handler-fn (match-route request)]
+    (handler-fn (assoc (:params request) :user-name (get-in request [:cookies "dd-user-name" :value])))
     {:status 404
      :headers {"Content-Type" "text/html"}
      :body "Page not found"}))
@@ -75,7 +80,8 @@
 
 (def wrapped-app (-> app
                      wrap-multipart-params
-                     wrap-params))
+                     wrap-params
+                     wrap-cookies))
 
 
 #_(server)
