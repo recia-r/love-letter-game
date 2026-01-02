@@ -30,24 +30,18 @@
    :body (pr-str @state)})
 
 ;; API handlers
-(defn get-game-state [_request]
-  (return-game-state))
+(defn get-game-state [{:strs [room-id]}]
+  (return-game-state room-id))
 
-(defn start-game [request]
-  (let [request (assoc-in request [:params :players] "Micah,Recia")
-        {:strs [players]} (:params request)
-        player-names (vec (str/split players #","))]
-    (reset! state (dd/new-game player-names (dd/create-deck)))
-    (return-game-state)))
 
-(defn play-card [request]
-  (let [{:strs [card target guessed-value player]} (:params request)]
-    (swap! state dd/play-card
-           player
-           (dd/card-by-value (parse-long card))
-           {:target-player-name target
-            :guessed-card-value (when guessed-value (parse-long guessed-value))})
-    (return-game-state)))
+(defn play-card [{:strs [card target guessed-value player room-id]}]
+  (swap! state/rooms update-in [room-id :room/game]
+         dd/play-card
+         player
+         (dd/card-by-value (parse-long card))
+         {:target-player-name target
+          :guessed-card-value (when guessed-value (parse-long guessed-value))})
+  (return-game-state room-id))
 
 (defn draw-card [request]
   (let [{:strs [player]} (:params request)]
@@ -71,20 +65,12 @@
     (swap! rooms/state rooms/join-room {:room-id (java.util.UUID/fromString room-id) :player-name player-name})
     (return-rooms-state)))
 
-(defn start-room-game [request]
-  (let [{:strs [room-id]} (:params request)
-        room-id-uuid (java.util.UUID/fromString room-id)
-        room (rooms/get-room @rooms/state {:room-id room-id-uuid})
-        player-names (vec (:room/players room))]
-    ;; Initialize the game state with the room's players
-    (reset! state (dd/new-game player-names (dd/create-deck)))
-    ;; Update the room state to in-game and store the game state
-    (swap! rooms/state
-           (fn [rooms-state]
-             (-> rooms-state
-                 (rooms/start-game {:room-id room-id-uuid})
-                 (update room-id-uuid assoc :room/game @state))))
-    (return-rooms-state)))
+(defn start-room-game [{:strs [room-id]}]
+  (let [room-id (java.util.UUID/fromString room-id)
+        player-names (:room/players (rooms/get-room @state/rooms {:room-id room-id}))]
+    (swap! state/rooms rooms/start-game {:room-id room-id
+                                         :game-state (dd/new-game player-names (dd/create-deck))})
+    (return-game-state room-id)))
 
 (defn end-room-game [request]
   (let [{:strs [room-id]} (:params request)]

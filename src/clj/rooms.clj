@@ -47,9 +47,9 @@
   {:pre [(= (:room/state (get-room state {:room-id room-id})) :pre-game)]}
   (update state room-id add-player-to-room player-name))
 
-(defn start-game [state {:keys [room-id]}]
+(defn start-game [state {:keys [room-id game-state]}]
   {:pre [(= (:room/state (get-room state {:room-id room-id})) :pre-game)]}
-  (update state room-id assoc :room/state :in-game))
+  (update state room-id assoc :room/state :in-game :room/game game-state))
 
 (defn end-game [state {:keys [room-id]}]
   {:pre [(= (:room/state (get-room state {:room-id room-id})) :in-game)]}
