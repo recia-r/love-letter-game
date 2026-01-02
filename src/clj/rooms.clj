@@ -2,7 +2,7 @@
   (:require
    [duck-dynasty.game :as dd]))
 
-(defonce state (atom {}))
+(defn initial-state [] {})
 
 ;; ROOM
 

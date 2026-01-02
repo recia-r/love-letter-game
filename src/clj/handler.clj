@@ -4,9 +4,9 @@
    [clj.rooms :as rooms]
    [ring.util.response :refer [file-response]]
    [clojure.edn :as edn]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [clj.state :as state]))
 
-(defonce state (atom nil))
 
 ;; Static file handlers
 (defn serve-index [_request]
