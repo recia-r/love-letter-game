@@ -23,11 +23,11 @@
         image-path (str "resources/cardimage/" filename)]
     (file-response image-path)))
 
-(defn return-game-state []
+(defn return-game-state [room-id]
   {:status 200
    :headers {"Content-Type" "application/edn"
              "Access-Control-Allow-Origin" "*"}
-   :body (pr-str @state)})
+   :body (pr-str (:room/game (rooms/get-room @state/rooms {:room-id room-id})))})
 
 ;; API handlers
 (defn get-game-state [{:strs [room-id]}]
@@ -43,27 +43,25 @@
           :guessed-card-value (when guessed-value (parse-long guessed-value))})
   (return-game-state room-id))
 
-(defn draw-card [request]
-  (let [{:strs [player]} (:params request)]
-    (swap! state dd/draw-card player)
-    (return-game-state)))
+(defn draw-card [{:strs [player room-id]}]
+  (swap! state/rooms update-in [room-id :room/game] dd/draw-card player)
+  (return-game-state room-id))
 
 ;; Room handlers
 (defn return-rooms-state []
+  ;; TODO probably don't want to be returning all of rooms/state
   {:status 200
    :headers {"Content-Type" "application/edn"
              "Access-Control-Allow-Origin" "*"}
-   :body (pr-str @rooms/state)})
+   :body (pr-str @state/rooms)})
 
-(defn create-room [request]
-  (let [{:strs [player-name]} (:params request)]
-    (swap! rooms/state rooms/create-room-with-initial-player {:player-name player-name})
-    (return-rooms-state)))
+(defn create-room [{:strs [player-name]}]
+  (swap! state/rooms rooms/create-room-with-initial-player {:player-name player-name})
+  (return-rooms-state))
 
-(defn join-room [request]
-  (let [{:strs [room-id player-name]} (:params request)]
-    (swap! rooms/state rooms/join-room {:room-id (java.util.UUID/fromString room-id) :player-name player-name})
-    (return-rooms-state)))
+(defn join-room [{:strs [room-id player-name]}]
+  (swap! state/rooms rooms/join-room {:room-id (java.util.UUID/fromString room-id) :player-name player-name})
+  (return-rooms-state))
 
 (defn start-room-game [{:strs [room-id]}]
   (let [room-id (java.util.UUID/fromString room-id)
@@ -72,21 +70,17 @@
                                          :game-state (dd/new-game player-names (dd/create-deck))})
     (return-game-state room-id)))
 
-(defn end-room-game [request]
-  (let [{:strs [room-id]} (:params request)]
-    (swap! rooms/state rooms/end-game {:room-id (java.util.UUID/fromString room-id)})
-    (return-rooms-state)))
+(defn end-room-game [{:strs [room-id]}]
+  (swap! state/rooms rooms/end-game {:room-id (java.util.UUID/fromString room-id)})
+  (return-rooms-state))
 
-(defn replay-room-game [request]
-  (let [{:strs [room-id]} (:params request)]
-    (swap! rooms/state rooms/replay-game {:room-id (java.util.UUID/fromString room-id)})
-    (return-rooms-state)))
+(defn replay-room-game [{:strs [room-id]}]
+  (swap! state/rooms rooms/replay-game {:room-id (java.util.UUID/fromString room-id)})
+  (return-rooms-state))
 
-(defn get-room-info [request]
-  (let [uri (:uri request)
-        room-id-str (last (str/split uri #"/"))
-        room-id (java.util.UUID/fromString room-id-str)
-        room (rooms/get-room @rooms/state {:room-id room-id})]
+(defn get-room-info [{:strs [room-id]}]
+  (let [room-id (java.util.UUID/fromString room-id)
+        room (rooms/get-room @state/rooms {:room-id room-id})]
     (if room
       {:status 200
        :headers {"Content-Type" "application/edn"
@@ -100,7 +94,7 @@
 (defn get-player-rooms [request]
   (let [uri (:uri request)
         player-name (last (str/split uri #"/"))
-        player-rooms-list (rooms/player-rooms @rooms/state player-name)]
+        player-rooms-list (rooms/player-rooms @state/rooms player-name)]
     {:status 200
      :headers {"Content-Type" "application/edn"
                "Access-Control-Allow-Origin" "*"}
