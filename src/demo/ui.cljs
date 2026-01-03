@@ -6,6 +6,7 @@
    [cljs.reader :as reader]))
 
 ;; Game state atom
+(defonce rooms (r/atom nil))
 (defonce game-state (r/atom nil))
 
 (defn fetch-game-state []
@@ -58,9 +59,7 @@
         (.catch (fn [error]
                   (js/console.error "Error drawing card:" error))))))
 
-(defn init []
-  ;; Initialize a new game with two players
-  (fetch-game-state))
+(defn init [])
 
 (defn card-component [card]
   [:div.card
@@ -205,42 +204,134 @@
       (.catch (fn [error]
                 (js/console.error "Error setting user name:" error)))))
 
+(defn create-room [player-name]
+  (let [form-data (doto (js/FormData.)
+                    (.append "player-name" player-name))
+        options (clj->js {:method "POST"
+                          :body form-data})]
+    (-> (js/fetch "/api/rooms/create" options)
+        (.then (fn [response] (.text response)))
+        (.then (fn [edn-text]
+                 (reset! rooms (reader/read-string edn-text))))
+        (.catch (fn [error]
+                  (js/console.error "Error creating room:" error))))))
+
+(defn start-room-game [room-id]
+  (let [form-data (doto (js/FormData.)
+                    (.append "room-id" (str room-id)))
+        options (clj->js {:method "POST"
+                          :body form-data})]
+    (-> (js/fetch "/api/rooms/start-game" options)
+        (.then (fn [response] (.text response)))
+        (.then (fn [edn-text]
+                 (reset! rooms (reader/read-string edn-text))))
+        (.catch (fn [error]
+                  (js/console.error "Error starting room game:" error))))))
+
+(defn join-room-api [room-id player-name]
+  (let [form-data (doto (js/FormData.)
+                    (.append "room-id" (str room-id))
+                    (.append "player-name" player-name))
+        options (clj->js {:method "POST"
+                          :body form-data})]
+    (-> (js/fetch "/api/rooms/join" options)
+        (.then (fn [response] (.text response)))
+        (.then (fn [edn-text]
+                 (reset! rooms (reader/read-string edn-text))))
+        (.catch (fn [error]
+                  (js/console.error "Error joining room:" error))))))
+
+(defn fetch-player-rooms [on-success]
+  (-> (js/fetch "/api/rooms/player")
+      (.then (fn [response] (.text response)))
+      (.then (fn [edn-text]
+               (on-success (reader/read-string edn-text))))
+      (.catch (fn [error]
+                (js/console.error "Error fetching player rooms:" error)))))
+
+(defn player-rooms-component [player-name]
+  (let [player-rooms (r/atom [])
+        _ (fetch-player-rooms #(reset! player-rooms %))
+        _ (println "player-rooms" @player-rooms)]
+    (fn []
+      (when (seq @player-rooms)
+        [:div.joinable-rooms
+         {:style {:margin-top "30px" :text-align "center"}}
+         [:h3 "Rooms"]
+         (for [room @player-rooms]
+           ^{:key (:room/id room)}
+           [:div.room-item
+            {:style {:margin "10px 0"
+                     :padding "15px"
+                     :border "1px solid #ddd"
+                     :border-radius "4px"
+                     :background-color "#f9f9f9"}}
+            [:p [:strong "Room ID: "] (subs (str (:room/id room)) 0 8)]
+            [:p [:strong "Players: "] (str/join ", " (:room/players room))]
+            [:button {:on-click (fn []
+                                  (join-room-api (:room/id room) player-name))
+                      :disabled (contains? (:room/players room) player-name)
+                      :style {:padding "8px 16px"
+                              :background-color (if (contains? (:room/players room) player-name)
+                                                  "#ccc"
+                                                  "#FF9800")
+                              :color "white"
+                              :border "none"
+                              :border-radius "4px"
+                              :margin-top "10px"
+                              :margin-right "10px"}}
+             "Join Room"]
+            (when (contains? (:room/players room) player-name)
+              [:button {:on-click (fn []
+                                    (start-room-game (:room/id room)))
+                        :disabled (<= (count (:room/players room)) 1)
+                        :style {:padding "8px 16px"
+                                :background-color (if (> (count (:room/players room)) 1)
+                                                    "#4CAF50"
+                                                    "#ccc")
+                                :color "white"
+                                :border "none"
+                                :border-radius "4px"
+                                :margin-top "10px"}}
+               "Start Game"])])]))))
+
 (defn app []
   (let [username-input (r/atom (or (get-user-name) ""))]
     (fn []
-      [:<>
-       [:div.actions
-        {:style {:margin-top "30px" :text-align "center"}}
-        [:div {:style {:margin-bottom "15px"}}
-         [:input {:type "text"
-                  :placeholder "Enter username"
-                  :value @username-input
-                  :on-change #(reset! username-input (-> % .-target .-value))
-                  :on-blur #(when (not (str/blank? @username-input))
-                              (set-user-name! @username-input))
-                  :style {:padding "8px 12px"
-                          :font-size "14px"
-                          :border "1px solid #ccc"
-                          :border-radius "4px"
-                          :width "200px"}}]]
-        [:button {:on-click #(when (not (str/blank? @username-input))
-                               (set-user-name! @username-input)
-                               (create-room-api @username-input))
-              :style {:padding "10px 20px"
-                      :background-color "#2196F3"
-                      :color "white"
-                      :border "none"
-                      :border-radius "4px"
-                      :cursor "pointer"
-                      :font-size "16px"}}
-     "New Game"]]
-   (if-let [state @game-state]
-     [:div.app
-      {:style {:max-width "800px"
-               :margin "0 auto"
-               :padding "20px"
-               :font-family "Arial, sans-serif"}}
-      [game-status-component state]
-      [current-player-component state]]
-     [:div "Loading game state..."])])
+      (cond
+        @game-state
+        [:div.app
+         {:style {:max-width "800px"
+                  :margin "0 auto"
+                  :padding "20px"
+                  :font-family "Arial, sans-serif"}}
+         [game-status-component @game-state]
+         [current-player-component @game-state]]
+
+        :else
+        [:<>
+         [:div.actions
+          {:style {:margin-top "30px" :text-align "center"}}
+          [:div {:style {:margin-bottom "15px"}}
+           [:input {:type "text"
+                    :placeholder "Enter username"
+                    :value @username-input
+                    :on-change #(reset! username-input (-> % .-target .-value))
+                    :on-blur #(when (not (str/blank? @username-input))
+                                (set-user-name! @username-input))
+                    :style {:padding "8px 12px"
+                            :font-size "14px"
+                            :border "1px solid #ccc"
+                            :border-radius "4px"
+                            :width "200px"}}]]
+          [:button {:on-click #(create-room @username-input)
+                    :style {:padding "10px 20px"
+                            :background-color "#2196F3"
+                            :color "white"
+                            :border "none"
+                            :border-radius "4px"
+                            :cursor "pointer"
+                            :font-size "16px"}}
+           "Create Room"]]
+         [player-rooms-component @username-input]]))))
 

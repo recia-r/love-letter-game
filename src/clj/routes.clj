@@ -58,10 +58,10 @@
       (and (= method :get) (str/starts-with? uri "/api/rooms/room/"))
       handlers/get-room-info
 
-      (and (= method :get) (str/starts-with? uri "/api/rooms/player/"))
+      (and (= method :get) (= uri "/api/rooms/player"))
       handlers/get-player-rooms
 
-      (and (= method :get) (str/starts-with? uri "/api/rooms/joinable/"))
+      (and (= method :get) (= uri "/api/rooms/joinable"))
       handlers/get-joinable-rooms
 
       :else nil)))

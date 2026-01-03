@@ -68,7 +68,7 @@
         player-names (:room/players (rooms/get-room @state/rooms {:room-id room-id}))]
     (swap! state/rooms rooms/start-game {:room-id room-id
                                          :game-state (dd/new-game player-names (dd/create-deck))})
-    (return-game-state room-id)))
+    (return-rooms-state)))
 
 (defn end-room-game [{:strs [room-id]}]
   (swap! state/rooms rooms/end-game {:room-id (java.util.UUID/fromString room-id)})
@@ -91,14 +91,17 @@
                  "Access-Control-Allow-Origin" "*"}
        :body (pr-str {:error "Room not found"})})))
 
-(defn get-player-rooms [request]
-  (let [uri (:uri request)
-        player-name (last (str/split uri #"/"))
-        player-rooms-list (rooms/player-rooms @state/rooms player-name)]
-    {:status 200
-     :headers {"Content-Type" "application/edn"
-               "Access-Control-Allow-Origin" "*"}
-     :body (pr-str player-rooms-list)}))
+(defn get-player-rooms [{:keys [user-name]}]
+  {:status 200
+   :headers {"Content-Type" "application/edn"
+             "Access-Control-Allow-Origin" "*"}
+   :body (pr-str (rooms/player-rooms @state/rooms user-name))})
+
+(defn get-joinable-rooms [{:keys [user-name]}]
+  {:status 200
+   :headers {"Content-Type" "application/edn"
+             "Access-Control-Allow-Origin" "*"}
+   :body (pr-str (rooms/joinable-rooms @state/rooms user-name))})
 
 
 (defn set-user-name [{:strs [user-name]}]

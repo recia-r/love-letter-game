@@ -32,6 +32,7 @@
 (defn player-rooms [state player-name]
   (->> state
        vals
+       (filter #(not= (:room/state %) :post-game))
        (filter #(player-in-room? % player-name))))
 
 (defn joinable-rooms [state player-name]
