@@ -52,10 +52,6 @@
   {:pre [(= (:room/state (get-room state {:room-id room-id})) :pre-game)]}
   (update state room-id assoc :room/state :in-game :room/game game-state))
 
-(defn resume-game [state {:keys [room-id]}]
-  {:pre [(= (:room/state (get-room state {:room-id room-id})) :in-game)]}
-  state)
-
 (defn end-game [state {:keys [room-id]}]
   {:pre [(= (:room/state (get-room state {:room-id room-id})) :in-game)]}
   (update state room-id assoc :room/state :post-game))

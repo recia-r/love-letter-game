@@ -246,9 +246,7 @@
                      :border "none"
                      :border-radius "4px"
                      :margin-top "10px"}}
-    (if (= (:room/state room) :in-game)
-      "Resume Game"
-      "Start Game")]])
+    "Enter Game"]])
 
 (defn joinable-rooms-component []
   (r/with-let

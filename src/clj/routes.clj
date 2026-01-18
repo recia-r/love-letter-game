@@ -49,8 +49,8 @@
       (and (= method :post) (= uri "/api/rooms/start-game"))
       handlers/start-room-game
 
-      (and (= method :post) (= uri "/api/rooms/resume-game"))
-      handlers/resume-room-game
+      (and (= method :post) (= uri "/api/rooms/display-game"))
+      handlers/display-room-game
 
       (and (= method :post) (= uri "/api/rooms/end-game"))
       handlers/end-room-game
