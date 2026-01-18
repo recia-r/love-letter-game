@@ -125,8 +125,9 @@
      (dd/draw-card "Alice")
      (dd/play-card "Alice" (dd/card-by-value 4) {})
      (dd/draw-card "Bob")
-     (dd/play-card "Bob" (dd/card-by-value 2) {:target-player-name "Alice"}))
- :throws java.lang.AssertionError
+     (dd/play-card "Bob" (dd/card-by-value 2) {:target-player-name "Alice"})
+     (get :state/current-player)) 
+ := "Alice"
 
  "playing wizard discards target player's card and draws a new card"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck
