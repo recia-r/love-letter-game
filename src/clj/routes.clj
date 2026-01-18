@@ -49,9 +49,6 @@
       (and (= method :post) (= uri "/api/rooms/start-game"))
       handlers/start-room-game
 
-      (and (= method :post) (= uri "/api/rooms/display-game"))
-      handlers/display-room-game
-
       (and (= method :post) (= uri "/api/rooms/end-game"))
       handlers/end-room-game
 
@@ -89,16 +86,11 @@
 
 (defonce server (atom nil))
 
-(defn stop-server []
-  (when-let [stop-fn @server]
-    (stop-fn)
-    (reset! server nil)))
+(defn -main []
+  (when @server
+    (.stop @server))
+  (reset! server (http/run-server #'wrapped-app {:port 8200})))
 
-(defn start-server []
-  (stop-server)
-  (let [stop-fn (http/run-server #'wrapped-app {:port 8200})]
-    (reset! server stop-fn)))
+#_(-main)
 
-(defn restart-server []
-  (stop-server)
-  (start-server))
+#_(.stop @server)
