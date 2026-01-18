@@ -70,6 +70,9 @@
                                          :game-state (dd/new-game player-names (dd/create-deck))})
     (return-rooms-state)))
 
+(defn resume-room-game [{:strs [room-id]}] 
+  (return-rooms-state))
+
 (defn end-room-game [{:strs [room-id]}]
   (swap! state/rooms rooms/end-game {:room-id (java.util.UUID/fromString room-id)})
   (return-rooms-state))

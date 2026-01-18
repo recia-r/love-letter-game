@@ -268,6 +268,7 @@
                      :background-color "#f9f9f9"}}
             [:p [:strong "Room ID: "] (subs (str (:room/id room)) 0 8)]
             [:p [:strong "Players: "] (str/join ", " (:room/players room))]
+            [:p [:strong "State: "] (:room/state room)]
             [:button {:on-click (fn []
                                   (join-room-api (:room/id room) player-name))
                       :disabled (contains? (:room/players room) player-name)
@@ -281,19 +282,20 @@
                               :margin-top "10px"
                               :margin-right "10px"}}
              "Join Room"]
-            (when (contains? (:room/players room) player-name)
-              [:button {:on-click (fn []
-                                    (start-room-game (:room/id room)))
-                        :disabled (<= (count (:room/players room)) 1)
-                        :style {:padding "8px 16px"
-                                :background-color (if (> (count (:room/players room)) 1)
-                                                    "#4CAF50"
-                                                    "#ccc")
-                                :color "white"
-                                :border "none"
-                                :border-radius "4px"
-                                :margin-top "10px"}}
-               "Start Game"])])]))))
+            [:button {:on-click (fn []
+                                  (start-room-game (:room/id room)))
+                      :disabled (<= (count (:room/players room)) 1)
+                      :style {:padding "8px 16px"
+                              :background-color (if (> (count (:room/players room)) 1)
+                                                  "#4CAF50"
+                                                  "#ccc")
+                              :color "white"
+                              :border "none"
+                              :border-radius "4px"
+                              :margin-top "10px"}}
+             (if (= (:room/state room) :in-game)
+               "Resume Game"
+               "Start Game")]])]))))
 
 (defn app []
   (let [username-input (r/atom (or (get-user-name) ""))]
