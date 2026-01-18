@@ -3,6 +3,9 @@
    [clj.rooms :as rooms]))
 
 (defonce rooms (atom (rooms/initial-state)))
+#_(reset! rooms nil)
+
+#_@rooms
 
 (comment
   {:uuid5 {:room/id :uuid5

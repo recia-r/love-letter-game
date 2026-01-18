@@ -7,57 +7,36 @@
 
 ;; Game state atom
 (defonce rooms (r/atom nil))
-(defonce game-state (r/atom nil))
 
-(defn fetch-game-state []
-  (-> (js/fetch "/api/game-state")
+(defonce page (r/atom [:page/home {}]))
+
+(defn get-user-name []
+  (let [cookie-name "dd-user-name="]
+    (some->> (str/split (.-cookie js/document) #";\s*")
+             (some #(when (str/starts-with? % cookie-name)
+                      (subs % (count cookie-name)))))))
+
+(defonce player-name (r/atom (get-user-name)))
+;; [:page/room {:room-id 3}]
+
+(defn nav-to! [p]
+  (reset! page p))
+
+(defn fetch [{:keys [url]}]
+  (-> (js/fetch url)
       (.then (fn [response] (.text response)))
       (.then (fn [edn-text]
-               (reset! game-state (reader/read-string edn-text))))
+               (reader/read-string edn-text)))
       (.catch (fn [error]
-                (js/console.error "Error fetching game state:" error)))))
+                (js/console.error "Error fetching:" url ":" error)))))
 
-(defn start-game [player-names]
-  (let [players-str (str/join "," player-names)
-        form-data (doto (js/FormData.)
-                    (.append "players" players-str))
-        options (clj->js {:method "POST"
-                          :body form-data})]
-    (-> (js/fetch "/api/start-game" options)
-        (.then (fn [response] (.text response)))
-        (.then (fn [edn-text]
-                 (reset! game-state (reader/read-string edn-text))))
-        (.catch (fn [error]
-                  (js/console.error "Error starting game:" error))))))
+(defn fetch-atom [{:keys [url]}]
+  (let [a (r/atom nil)]
+    (-> (fetch {:url url})
+        (.then (fn [response]
+                 (reset! a response))))
+    a))
 
-(defn play-card-api [player-name card-value target-player-name guessed-value]
-  (let [form-data (doto (js/FormData.)
-                    (.append "player" player-name)
-                    (.append "card" (str card-value)))]
-    (when target-player-name
-      (.append form-data "target" target-player-name))
-    (when guessed-value
-      (.append form-data "guessed-value" (str guessed-value)))
-    (let [options (clj->js {:method "POST"
-                            :body form-data})]
-      (-> (js/fetch "/api/play-card" options)
-          (.then (fn [response] (.text response)))
-          (.then (fn [edn-text]
-                   (reset! game-state (reader/read-string edn-text))))
-          (.catch (fn [error]
-                    (js/console.error "Error playing card:" error)))))))
-
-(defn draw-card-api [player-name]
-  (let [form-data (doto (js/FormData.)
-                    (.append "player" player-name))
-        options (clj->js {:method "POST"
-                          :body form-data})]
-    (-> (js/fetch "/api/draw-card" options)
-        (.then (fn [response] (.text response)))
-        (.then (fn [edn-text]
-                 (reset! game-state (reader/read-string edn-text))))
-        (.catch (fn [error]
-                  (js/console.error "Error drawing card:" error))))))
 
 (defn init [])
 
@@ -72,14 +51,14 @@
             :flex-direction "column"
             :align-items "center"
             :max-width "200px"}}
-   [:img {:src (str "/card/" (:card/value card) ".jpg")
-          :alt (:card/name card)
+   [:img {:src (str "/card?value=" (:card/value card))
+          :alt (or (:card/name card) "Card")
           :style {:width "100%"
                   :height "auto"
                   :border-radius "4px"
                   :margin-bottom "10px"}}]])
 
-(defn player-hand-component [state player-name]
+(defn player-hand-component [state {:keys [draw-card!]} player-name]
   (let [hand (dd/player-hand state player-name)
         is-current-player? (= player-name (:state/current-player state))
         has-one-card? (= (count hand) 1)]
@@ -93,9 +72,9 @@
           ^{:key (str (:card/value card) "-" (:card/name card))}
           [card-component card])
         (when (and is-current-player? has-one-card?)
-          [:img {:src "/card/duckcardback.png"
+          [:img {:src "/card?value=back"
                  :alt "Draw Card"
-                 :on-click #(draw-card-api player-name)
+                 :on-click #(draw-card!)
                  :style {:width "200px"
                          :height "auto"
                          :margin-left "10px"
@@ -110,7 +89,7 @@
 ;; do not pass state around - below should not get state as an argument, should get fns that alter state (state defined in top level component)
 ;; within each room, i'll have a game state. all components shuld get an immutable version of state (and fns should alter state)
 
-(defn play-card-form [state player-name card]
+(defn play-card-form [state {:keys [play-card!]} player-name card]
   (let [target-players (dd/targetable-players state (:card/value card))
         needs-target? (not (nil? (:card/targeting-rule card)))
         needs-guess? (= (:card/value card) 1) ; Minion needs a guess
@@ -142,10 +121,10 @@
              ^{:key val}
              [:option {:value val} (str val " - " (:card/name (dd/card-by-value val)))])]])
        [:button {:on-click (fn []
-                             (play-card-api player-name
-                                            (:card/value card)
-                                            (when needs-target? @target)
-                                            (when needs-guess? @guessed-value)))
+                             (play-card!
+                              (:card/value card)
+                              (when needs-target? @target)
+                              (when needs-guess? @guessed-value)))
                  :style {:padding "8px 16px"
                          :background-color "#4CAF50"
                          :color "white"
@@ -154,7 +133,7 @@
                          :cursor "pointer"}}
         "Play Card"]])))
 
-(defn current-player-component [state]
+(defn current-player-component [state fns]
   (let [current-player (:state/current-player state)
         hand (dd/player-hand state current-player)]
     [:div.current-player
@@ -164,16 +143,16 @@
               :margin "20px 0"}}
      [:h2 {:style {:margin-top "0"}}
       (str "Current Player: " current-player)]
-     [player-hand-component state current-player]
+     [player-hand-component state fns current-player]
      (when (seq hand)
        [:div.playable-cards
         {:style {:margin-top "20px"}}
         (for [card hand]
           ^{:key (str "play-" (:card/value card))}
           [:div {:style {:margin-bottom "15px"}}
-           [play-card-form state current-player card]])])]))
+           [play-card-form state fns current-player card]])])]))
 
-(defn game-status-component [state]
+(defn game-status-component [state _]
   [:div.game-status
    {:style {:background-color "#fff3cd"
             :padding "15px"
@@ -191,142 +170,197 @@
       [:p (str "Round: " (:state/round state) " / " (:state/rounds state))]
       [:p (str "Remaining Cards: " (count (:state/deck state)))]])])
 
-(defn get-user-name []
-  (let [cookies (-> js/document .-cookie (.split "; "))
-        name-cookie (first (filter #(.startsWith % "dd-user-name=") cookies))]
-    (when name-cookie
-      (subs name-cookie 13)))) ; "dd-user-name=" is 13 characters
+
 
 (defn set-user-name! [user-name]
+  (js/console.log "setting user name to" user-name)
   (-> (js/fetch "/api/user/set-name" #js {:method "POST"
                                           :body (doto (js/FormData.)
                                                   (.append "user-name" user-name))})
+      (.then (fn [_response]
+               (reset! player-name user-name)))
       (.catch (fn [error]
                 (js/console.error "Error setting user name:" error)))))
 
-(defn create-room [player-name]
-  (let [form-data (doto (js/FormData.)
-                    (.append "player-name" player-name))
-        options (clj->js {:method "POST"
-                          :body form-data})]
-    (-> (js/fetch "/api/rooms/create" options)
-        (.then (fn [response] (.text response)))
-        (.then (fn [edn-text]
-                 (reset! rooms (reader/read-string edn-text))))
-        (.catch (fn [error]
-                  (js/console.error "Error creating room:" error))))))
-
-(defn start-room-game [room-id]
-  (let [form-data (doto (js/FormData.)
-                    (.append "room-id" (str room-id)))
-        options (clj->js {:method "POST"
-                          :body form-data})]
-    (-> (js/fetch "/api/rooms/start-game" options)
-        (.then (fn [response] (.text response)))
-        (.then (fn [edn-text]
-                 (reset! rooms (reader/read-string edn-text))))
-        (.catch (fn [error]
-                  (js/console.error "Error starting room game:" error))))))
-
-(defn join-room-api [room-id player-name]
-  (let [form-data (doto (js/FormData.)
-                    (.append "room-id" (str room-id))
-                    (.append "player-name" player-name))
-        options (clj->js {:method "POST"
-                          :body form-data})]
-    (-> (js/fetch "/api/rooms/join" options)
-        (.then (fn [response] (.text response)))
-        (.then (fn [edn-text]
-                 (reset! rooms (reader/read-string edn-text))))
-        (.catch (fn [error]
-                  (js/console.error "Error joining room:" error))))))
-
-(defn fetch-player-rooms [on-success]
-  (-> (js/fetch "/api/rooms/player")
+(defn create-room []
+  (-> (js/fetch "/api/rooms/create" #js {:method "POST"})
       (.then (fn [response] (.text response)))
       (.then (fn [edn-text]
-               (on-success (reader/read-string edn-text))))
+               (reset! rooms (reader/read-string edn-text))))
       (.catch (fn [error]
-                (js/console.error "Error fetching player rooms:" error)))))
+                (js/console.error "Error creating room:" error)))))
 
-(defn player-rooms-component [player-name]
-  (let [player-rooms (r/atom [])
-        _ (fetch-player-rooms #(reset! player-rooms %))
-        _ (println "player-rooms" @player-rooms)]
-    (fn []
-      (when (seq @player-rooms)
-        [:div.joinable-rooms
-         {:style {:margin-top "30px" :text-align "center"}}
-         [:h3 "Rooms"]
-         (for [room @player-rooms]
-           ^{:key (:room/id room)}
-           [:div.room-item
-            {:style {:margin "10px 0"
-                     :padding "15px"
-                     :border "1px solid #ddd"
+(defn start-room-game [room-id]
+  (-> (js/fetch (str "/api/rooms/start-game?room-id=" room-id) #js {:method "POST"})
+      (.then (fn [response] (.text response)))
+      (.then (fn [edn-text]
+               (nav-to! [:page/game {:room-id room-id}])))
+      (.catch (fn [error]
+                (js/console.error "Error starting room game:" error)))))
+
+(defn join-room-api [room-id]
+  (-> (js/fetch (str "/api/rooms/join?room-id=" room-id) #js {:method "POST"})
+      (.then (fn [response] (.text response)))
+      (.then (fn [edn-text]
+               (reset! rooms (reader/read-string edn-text))))
+      (.catch (fn [error]
+                (js/console.error "Error joining room:" error)))))
+
+(defn room-component [room]
+  [:div.room-item
+   {:style {:margin "10px 0"
+            :padding "15px"
+            :border "1px solid #ddd"
+            :border-radius "4px"
+            :background-color "#f9f9f9"}}
+   [:p [:strong "Room ID: "] (subs (str (:room/id room)) 0 8)]
+   [:p [:strong "Players: "] (str/join ", " (:room/players room))]
+   [:p [:strong "State: "] (:room/state room)]
+   [:button {:on-click (fn []
+                         (join-room-api (:room/id room)))
+             :disabled (contains? (:room/players room) @player-name)
+             :style {:padding "8px 16px"
+                     :background-color (if (contains? (:room/players room) @player-name)
+                                         "#ccc"
+                                         "#FF9800")
+                     :color "white"
+                     :border "none"
                      :border-radius "4px"
-                     :background-color "#f9f9f9"}}
-            [:p [:strong "Room ID: "] (subs (str (:room/id room)) 0 8)]
-            [:p [:strong "Players: "] (str/join ", " (:room/players room))]
-            [:p [:strong "State: "] (:room/state room)]
-            [:button {:on-click (fn []
-                                  (join-room-api (:room/id room) player-name))
-                      :disabled (contains? (:room/players room) player-name)
-                      :style {:padding "8px 16px"
-                              :background-color (if (contains? (:room/players room) player-name)
-                                                  "#ccc"
-                                                  "#FF9800")
-                              :color "white"
-                              :border "none"
-                              :border-radius "4px"
-                              :margin-top "10px"
-                              :margin-right "10px"}}
-             "Join Room"]
-            [:button {:on-click (fn []
-                                  (start-room-game (:room/id room)))
-                      :disabled (<= (count (:room/players room)) 1)
-                      :style {:padding "8px 16px"
-                              :background-color (if (> (count (:room/players room)) 1)
-                                                  "#4CAF50"
-                                                  "#ccc")
-                              :color "white"
-                              :border "none"
-                              :border-radius "4px"
-                              :margin-top "10px"}}
-             (if (= (:room/state room) :in-game)
-               "Resume Game"
-               "Start Game")]])]))))
+                     :margin-top "10px"
+                     :margin-right "10px"}}
+    "Join Room"]
+   [:button {:on-click (fn []
+                         (if (= (:room/state room) :in-game)
+                           (nav-to! [:page/game {:room-id (:room/id room)}])
+                           (start-room-game (:room/id room))))
+             :disabled (<= (count (:room/players room)) 1)
+             :style {:padding "8px 16px"
+                     :background-color (if (> (count (:room/players room)) 1)
+                                         "#4CAF50"
+                                         "#ccc")
+                     :color "white"
+                     :border "none"
+                     :border-radius "4px"
+                     :margin-top "10px"}}
+    (if (= (:room/state room) :in-game)
+      "Resume Game"
+      "Start Game")]])
+
+(defn joinable-rooms-component []
+  (r/with-let
+    [joinable-rooms (fetch-atom {:url "/api/rooms/joinable"})]
+    (when (seq @joinable-rooms)
+      [:div.joinable-rooms
+       {:style {:margin-top "30px" :text-align "center"}}
+       [:h3 "Rooms I Can Join"]
+       (for [room @joinable-rooms]
+         ^{:key (:room/id room)}
+         [room-component room])])))
+
+(defn player-rooms-component []
+  (r/with-let
+    [player-rooms (fetch-atom {:url "/api/rooms/player"})]
+    (when (seq @player-rooms)
+      [:div.joinable-rooms
+       {:style {:margin-top "30px" :text-align "center"}}
+       [:h3 "Rooms I'm In"]
+       (for [room @player-rooms]
+         ^{:key (:room/id room)}
+         [room-component room])])))
+
+(defn game-page
+  [[_ {:keys [room-id]}]]
+  (r/with-let
+    [game-state (fetch-atom {:url (str "/api/game-state?room-id=" room-id)})
+     play-card! (fn [card-value target-player-name guessed-value]
+                  (let [form-data (doto (js/FormData.)
+                                    (.append "card" (str card-value)))]
+                    (when target-player-name
+                      (.append form-data "target" target-player-name))
+                    (when guessed-value
+                      (.append form-data "guessed-value" (str guessed-value)))
+                    (let [options (clj->js {:method "POST"
+                                            :body form-data})]
+                      (-> (js/fetch (str "/api/play-card?room-id=" room-id) options)
+                          (.then (fn [response] (.text response)))
+                          (.then (fn [edn-text]
+                                   (reset! game-state (reader/read-string edn-text))))
+                          (.catch (fn [error]
+                                    (js/console.error "Error playing card:" error)))))))
+
+     draw-card! (fn []
+                  (-> (js/fetch (str "/api/draw-card?room-id=" room-id) #js {:method "POST"})
+                      (.then (fn [response] (.text response)))
+                      (.then (fn [edn-text]
+                               (reset! game-state (reader/read-string edn-text))))
+                      (.catch (fn [error]
+                                (js/console.error "Error drawing card:" error)))))
+     fns {:play-card! play-card!
+          :draw-card! draw-card!}]
+    [:div.game-page
+     {:style {:max-width "800px"
+              :margin "0 auto"
+              :padding "20px"
+              :font-family "Arial, sans-serif"}}
+     [game-status-component @game-state fns]
+     [current-player-component @game-state fns]]))
+
+
+(defn home-page []
+  [:div.home-page
+   {:style {:max-width "800px"
+            :margin "0 auto"
+            :padding "20px"
+            :font-family "Arial, sans-serif"}}
+   [player-rooms-component]
+   [joinable-rooms-component]])
+
 
 (defn app []
-  (let [username-input (r/atom (or (get-user-name) ""))]
+  (let [username-input (r/atom "")]
     (fn []
-      (cond
-        @game-state
-        [:div.app
-         {:style {:max-width "800px"
-                  :margin "0 auto"
-                  :padding "20px"
-                  :font-family "Arial, sans-serif"}}
-         [game-status-component @game-state]
-         [current-player-component @game-state]]
+      (case (first @page)
+        :page/game
+        [game-page @page]
 
-        :else
+        :page/home
         [:<>
          [:div.actions
           {:style {:margin-top "30px" :text-align "center"}}
           [:div {:style {:margin-bottom "15px"}}
-           [:input {:type "text"
-                    :placeholder "Enter username"
-                    :value @username-input
-                    :on-change #(reset! username-input (-> % .-target .-value))
-                    :on-blur #(when (not (str/blank? @username-input))
-                                (set-user-name! @username-input))
-                    :style {:padding "8px 12px"
+           (if @player-name
+             ;; Username already set in cookie - display as non-editable text
+             [:div {:style {:padding "8px 12px"
                             :font-size "14px"
-                            :border "1px solid #ccc"
-                            :border-radius "4px"
-                            :width "200px"}}]]
-          [:button {:on-click #(create-room @username-input)
+                            :font-weight "bold"
+                            :color "#333"}}
+              (str "Username: " @player-name)]
+             ;; Username not set - show editable input with submit button
+             [:div {:style {:display "flex"
+                            :align-items "center"
+                            :justify-content "center"
+                            :gap "8px"}}
+              [:input {:type "text"
+                       :placeholder "Enter username"
+                       :value @username-input
+                       :on-change #(reset! username-input (-> % .-target .-value))
+                       :style {:padding "8px 12px"
+                               :font-size "14px"
+                               :border "1px solid #ccc"
+                               :border-radius "4px"
+                               :width "200px"}}]
+              [:button {:on-click #(when (not (str/blank? @username-input))
+                                     (set-user-name! @username-input))
+                        :disabled (str/blank? @username-input)
+                        :style {:padding "8px 16px"
+                                :background-color (if (str/blank? @username-input) "#ccc" "#4CAF50")
+                                :color "white"
+                                :border "none"
+                                :border-radius "4px"
+                                :cursor (if (str/blank? @username-input) "not-allowed" "pointer")
+                                :font-size "14px"}}
+               "Set Name"]])]
+          [:button {:on-click #(create-room)
                     :style {:padding "10px 20px"
                             :background-color "#2196F3"
                             :color "white"
@@ -335,5 +369,13 @@
                             :cursor "pointer"
                             :font-size "16px"}}
            "Create Room"]]
-         [player-rooms-component @username-input]]))))
+         [player-rooms-component]
+         [joinable-rooms-component]]))))
 
+;; if no name set, don't show rooms at all
+;; if name set, don't show form to change name (But show name as text)
+
+;; move home page (rooms list) components and room/game page components to their own namespaces
+;; might need a shared namespace for some client side fns
+
+;; pass room-id param for game fns

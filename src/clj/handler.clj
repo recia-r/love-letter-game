@@ -18,8 +18,8 @@
 (defn serve-main-css [_request]
   (file-response "public/main.css"))
 
-(defn serve-card-image [request]
-  (let [filename (str/replace (:uri request) #"^/card/" "")
+(defn serve-card-image [{:strs [value]}]
+  (let [filename (str value ".jpg")
         image-path (str "resources/cardimage/" filename)]
     (file-response image-path)))
 
@@ -31,21 +31,22 @@
 
 ;; API handlers
 (defn get-game-state [{:strs [room-id]}]
-  (return-game-state room-id))
+  (return-game-state (java.util.UUID/fromString room-id)))
 
+(defn play-card [{:strs [card target guessed-value user-name room-id]}]
+  (let [room-id (java.util.UUID/fromString room-id)]
+    (swap! state/rooms update-in [room-id :room/game]
+           dd/play-card
+           user-name
+           (dd/card-by-value (parse-long card))
+           {:target-player-name target
+            :guessed-card-value (when guessed-value (parse-long guessed-value))})
+    (return-game-state room-id)))
 
-(defn play-card [{:strs [card target guessed-value player room-id]}]
-  (swap! state/rooms update-in [room-id :room/game]
-         dd/play-card
-         player
-         (dd/card-by-value (parse-long card))
-         {:target-player-name target
-          :guessed-card-value (when guessed-value (parse-long guessed-value))})
-  (return-game-state room-id))
-
-(defn draw-card [{:strs [player room-id]}]
-  (swap! state/rooms update-in [room-id :room/game] dd/draw-card player)
-  (return-game-state room-id))
+(defn draw-card [{:strs [user-name room-id]}]
+  (let [room-id (java.util.UUID/fromString room-id)]
+    (swap! state/rooms update-in [room-id :room/game] dd/draw-card user-name)
+    (return-game-state room-id)))
 
 ;; Room handlers
 (defn return-rooms-state []
@@ -55,12 +56,12 @@
              "Access-Control-Allow-Origin" "*"}
    :body (pr-str @state/rooms)})
 
-(defn create-room [{:strs [player-name]}]
-  (swap! state/rooms rooms/create-room-with-initial-player {:player-name player-name})
+(defn create-room [{:strs [user-name]}]
+  (swap! state/rooms rooms/create-room-with-initial-player {:player-name user-name})
   (return-rooms-state))
 
-(defn join-room [{:strs [room-id player-name]}]
-  (swap! state/rooms rooms/join-room {:room-id (java.util.UUID/fromString room-id) :player-name player-name})
+(defn join-room [{:strs [room-id user-name]}]
+  (swap! state/rooms rooms/join-room {:room-id (java.util.UUID/fromString room-id) :player-name user-name})
   (return-rooms-state))
 
 (defn start-room-game [{:strs [room-id]}]
@@ -70,7 +71,7 @@
                                          :game-state (dd/new-game player-names (dd/create-deck))})
     (return-rooms-state)))
 
-(defn resume-room-game [{:strs [room-id]}] 
+(defn resume-room-game [{:strs [room-id]}]
   (return-rooms-state))
 
 (defn end-room-game [{:strs [room-id]}]
@@ -94,13 +95,13 @@
                  "Access-Control-Allow-Origin" "*"}
        :body (pr-str {:error "Room not found"})})))
 
-(defn get-player-rooms [{:keys [user-name]}]
+(defn get-player-rooms [{:strs [user-name]}]
   {:status 200
    :headers {"Content-Type" "application/edn"
              "Access-Control-Allow-Origin" "*"}
    :body (pr-str (rooms/player-rooms @state/rooms user-name))})
 
-(defn get-joinable-rooms [{:keys [user-name]}]
+(defn get-joinable-rooms [{:strs [user-name]}]
   {:status 200
    :headers {"Content-Type" "application/edn"
              "Access-Control-Allow-Origin" "*"}

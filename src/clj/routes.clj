@@ -21,7 +21,7 @@
       (and (= method :get) (= uri "/main.css"))
       handlers/serve-main-css
 
-      (and (= method :get) (str/starts-with? uri "/card/"))
+      (and (= method :get) (= uri "/card"))
       handlers/serve-card-image
 
       ;; PLAYER routes
@@ -69,9 +69,9 @@
 
       :else nil)))
 
-(defn app [request] 
+(defn app [request]
   (if-let [handler-fn (match-route request)]
-    (handler-fn (assoc (:params request) :user-name (get-in request [:cookies "dd-user-name" :value])))
+    (handler-fn (assoc (:params request) "user-name" (get-in request [:cookies "dd-user-name" :value])))
     {:status 404
      :headers {"Content-Type" "text/html"}
      :body "Page not found"}))
