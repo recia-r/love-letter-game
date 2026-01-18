@@ -40,13 +40,12 @@
   [:div.card
    {:style {:border "1px solid #ccc"
             :padding "10px"
-            :margin "5px"
             :border-radius "4px"
             :background-color "#f9f9f9"
             :display "flex"
             :flex-direction "column"
             :align-items "center"
-            :max-width "200px"}}
+            :width "200px"}}
    [:img {:src (str "/card?value=" (:card/value card))
           :alt (or (:card/name card) "Card")
           :style {:width "100%"
@@ -57,29 +56,36 @@
 (defn player-hand-component [state {:keys [draw-card!]} player-name]
   (let [hand (dd/player-hand state player-name)
         is-current-player? (= player-name (:state/current-player state))
-        has-one-card? (= (count hand) 1)]
+        has-one-card? (= (count hand) 1)
+        cards (for [card hand]
+                ^{:key (str (:card/value card) "-" (:card/name card))}
+                [card-component card])
+        draw-button (when (and is-current-player? has-one-card?)
+                      [:img {:key "draw-card"
+                             :src "/card?value=back"
+                             :alt "Draw Card"
+                             :on-click #(draw-card!)
+                             :style {:width "200px"
+                                     :height "auto"
+                                     :cursor "pointer"
+                                     :border-radius "4px"
+                                     :border "2px solid #4CAF50"
+                                     :transition "transform 0.2s"}
+                             :on-mouse-enter #(set! (-> % .-target .-style .-transform) "scale(1.05)")
+                             :on-mouse-leave #(set! (-> % .-target .-style .-transform) "scale(1)")}])]
     [:div.player-hand
-     {:style {:margin "10px 0"}}
+     {:style {:margin "10px 0"
+              :max-width "none"}}
      (if (empty? hand)
        [:div "No cards (eliminated)"]
        [:div.cards
-        {:style {:display "flex" :flex-wrap "wrap" :align-items "center"}}
-        (for [card hand]
-          ^{:key (str (:card/value card) "-" (:card/name card))}
-          [card-component card])
-        (when (and is-current-player? has-one-card?)
-          [:img {:src "/card?value=back"
-                 :alt "Draw Card"
-                 :on-click #(draw-card!)
-                 :style {:width "200px"
-                         :height "auto"
-                         :margin-left "10px"
-                         :cursor "pointer"
-                         :border-radius "4px"
-                         :border "2px solid #4CAF50"
-                         :transition "transform 0.2s"}
-                 :on-mouse-enter #(set! (-> % .-target .-style .-transform) "scale(1.05)")
-                 :on-mouse-leave #(set! (-> % .-target .-style .-transform) "scale(1)")}])])]))
+        {:style {:display "flex"
+                 :flex-direction "row"
+                 :flex-wrap "nowrap"
+                 :align-items "center"
+                 :gap "10px"}}
+        (doall cards)
+        draw-button])]))
 
 ;; TODO from Jeff - make smaller components e.g. for target and guess
 ;; do not pass state around - below should not get state as an argument, should get fns that alter state (state defined in top level component)
@@ -132,22 +138,23 @@
 (defn outer-player-component [state fns]
   (let [current-player (:state/current-player state)
         hand (dd/player-hand state current-player)
-        player-is-current-player? (= @player-name current-player)]
-    [:div.current-player
-     {:style {:background-color "#e3f2fd"
-              :padding "20px"
-              :border-radius "8px"
-              :margin "20px 0"}}
-     [:h2 {:style {:margin-top "0"}}
-      (str "Currently " current-player "'s turn")]
-     [player-hand-component state fns @player-name]
-     (when player-is-current-player?
-       [:div.playable-cards
-        {:style {:margin-top "20px"}}
-        (for [card hand]
-          ^{:key (str "play-" (:card/value card))}
-          [:div {:style {:margin-bottom "15px"}}
-           [play-card-form state fns current-player card]])])]))
+        is-current-player? (= @player-name current-player)]
+    (when (not (dd/game-over? state))
+      [:div.current-player
+      {:style {:background-color "#e3f2fd"
+               :padding "20px"
+               :border-radius "8px"
+               :margin "20px 0"}}
+      [:h2 {:style {:margin-top "0"}}
+       (str "Currently " current-player "'s turn")]
+      [player-hand-component state fns @player-name]
+      (when is-current-player?
+        [:div.playable-cards
+         {:style {:margin-top "20px"}}
+         (for [card hand]
+           ^{:key (str "play-" (:card/value card))}
+           [:div {:style {:margin-bottom "15px"}}
+            [play-card-form state fns current-player card]])])])))
 
 (defn game-status-component [state _]
   [:div.game-status
