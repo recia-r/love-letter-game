@@ -17,10 +17,6 @@
                       (subs % (count cookie-name)))))))
 
 (defonce player-name (r/atom (get-user-name)))
-;; [:page/room {:room-id 3}]
-
-(defn nav-to! [p]
-  (reset! page p))
 
 (defn fetch [{:keys [url]}]
   (-> (js/fetch url)
@@ -85,7 +81,7 @@
                  :on-mouse-enter #(set! (-> % .-target .-style .-transform) "scale(1.05)")
                  :on-mouse-leave #(set! (-> % .-target .-style .-transform) "scale(1)")}])])]))
 
-;; TODO - make smaller components e.g. for target and guess
+;; TODO from Jeff - make smaller components e.g. for target and guess
 ;; do not pass state around - below should not get state as an argument, should get fns that alter state (state defined in top level component)
 ;; within each room, i'll have a game state. all components shuld get an immutable version of state (and fns should alter state)
 
@@ -133,18 +129,19 @@
                          :cursor "pointer"}}
         "Play Card"]])))
 
-(defn current-player-component [state fns]
+(defn outer-player-component [state fns]
   (let [current-player (:state/current-player state)
-        hand (dd/player-hand state current-player)]
+        hand (dd/player-hand state current-player)
+        player-is-current-player? (= @player-name current-player)]
     [:div.current-player
      {:style {:background-color "#e3f2fd"
               :padding "20px"
               :border-radius "8px"
               :margin "20px 0"}}
      [:h2 {:style {:margin-top "0"}}
-      (str "Current Player: " current-player)]
-     [player-hand-component state fns current-player]
-     (when (seq hand)
+      (str "Currently " current-player "'s turn")]
+     [player-hand-component state fns @player-name]
+     (when player-is-current-player?
        [:div.playable-cards
         {:style {:margin-top "20px"}}
         (for [card hand]
@@ -194,7 +191,7 @@
   (-> (js/fetch (str "/api/rooms/start-game?room-id=" room-id) #js {:method "POST"})
       (.then (fn [response] (.text response)))
       (.then (fn [edn-text]
-               (nav-to! [:page/game {:room-id room-id}])))
+               (reset! page [:page/game {:room-id room-id}])))
       (.catch (fn [error]
                 (js/console.error "Error starting room game:" error)))))
 
@@ -231,7 +228,7 @@
     "Join Room"]
    [:button {:on-click (fn []
                          (if (= (:room/state room) :in-game)
-                           (nav-to! [:page/game {:room-id (:room/id room)}])
+                           (reset! page [:page/game {:room-id (:room/id room)}])
                            (start-room-game (:room/id room))))
              :disabled (<= (count (:room/players room)) 1)
              :style {:padding "8px 16px"
@@ -303,74 +300,65 @@
               :padding "20px"
               :font-family "Arial, sans-serif"}}
      [game-status-component @game-state fns]
-     [current-player-component @game-state fns]]))
+     [outer-player-component @game-state fns]]))
 
 
 (defn home-page []
-  [:div.home-page
-   {:style {:max-width "800px"
-            :margin "0 auto"
-            :padding "20px"
-            :font-family "Arial, sans-serif"}}
-   [player-rooms-component]
-   [joinable-rooms-component]])
+  (let [username-input (r/atom "")]
+    (fn []
+      [:<>
+       [:div.actions
+        {:style {:margin-top "30px" :text-align "center"}}
+        [:div {:style {:margin-bottom "15px"}}
+         (if @player-name
+           ;; Username already set in cookie - display as non-editable text
+           [:div {:style {:padding "8px 12px"
+                          :font-size "14px"
+                          :font-weight "bold"
+                          :color "#333"}}
+            (str "Username: " @player-name)]
+           ;; Username not set - show editable input with submit button
+           [:div {:style {:display "flex"
+                          :align-items "center"
+                          :justify-content "center"
+                          :gap "8px"}}
+            [:input {:type "text"
+                     :placeholder "Enter username"
+                     :value @username-input
+                     :on-change #(reset! username-input (-> % .-target .-value))
+                     :style {:padding "8px 12px"
+                             :font-size "14px"
+                             :border "1px solid #ccc"
+                             :border-radius "4px"
+                             :width "200px"}}]
+            [:button {:on-click #(when (not (str/blank? @username-input))
+                                   (set-user-name! @username-input))
+                      :disabled (str/blank? @username-input)
+                      :style {:padding "8px 16px"
+                              :background-color (if (str/blank? @username-input) "#ccc" "#4CAF50")
+                              :color "white"
+                              :border "none"
+                              :border-radius "4px"
+                              :cursor (if (str/blank? @username-input) "not-allowed" "pointer")
+                              :font-size "14px"}}
+             "Set Name"]])]
+        [:button {:on-click #(create-room)
+                  :style {:padding "10px 20px"
+                          :background-color "#2196F3"
+                          :color "white"
+                          :border "none"
+                          :border-radius "4px"
+                          :cursor "pointer"
+                          :font-size "16px"}}
+         "Create Room"]]
+       [player-rooms-component]
+       [joinable-rooms-component]])))
 
 
 (defn app []
-  (let [username-input (r/atom "")]
-    (fn []
-      (case (first @page)
-        :page/game
-        [game-page @page]
-
-        :page/home
-        [:<>
-         [:div.actions
-          {:style {:margin-top "30px" :text-align "center"}}
-          [:div {:style {:margin-bottom "15px"}}
-           (if @player-name
-             ;; Username already set in cookie - display as non-editable text
-             [:div {:style {:padding "8px 12px"
-                            :font-size "14px"
-                            :font-weight "bold"
-                            :color "#333"}}
-              (str "Username: " @player-name)]
-             ;; Username not set - show editable input with submit button
-             [:div {:style {:display "flex"
-                            :align-items "center"
-                            :justify-content "center"
-                            :gap "8px"}}
-              [:input {:type "text"
-                       :placeholder "Enter username"
-                       :value @username-input
-                       :on-change #(reset! username-input (-> % .-target .-value))
-                       :style {:padding "8px 12px"
-                               :font-size "14px"
-                               :border "1px solid #ccc"
-                               :border-radius "4px"
-                               :width "200px"}}]
-              [:button {:on-click #(when (not (str/blank? @username-input))
-                                     (set-user-name! @username-input))
-                        :disabled (str/blank? @username-input)
-                        :style {:padding "8px 16px"
-                                :background-color (if (str/blank? @username-input) "#ccc" "#4CAF50")
-                                :color "white"
-                                :border "none"
-                                :border-radius "4px"
-                                :cursor (if (str/blank? @username-input) "not-allowed" "pointer")
-                                :font-size "14px"}}
-               "Set Name"]])]
-          [:button {:on-click #(create-room)
-                    :style {:padding "10px 20px"
-                            :background-color "#2196F3"
-                            :color "white"
-                            :border "none"
-                            :border-radius "4px"
-                            :cursor "pointer"
-                            :font-size "16px"}}
-           "Create Room"]]
-         [player-rooms-component]
-         [joinable-rooms-component]]))))
+  (case (first @page)
+    :page/game [game-page @page]
+    :page/home [home-page]))
 
 ;; if no name set, don't show rooms at all
 ;; if name set, don't show form to change name (But show name as text)
