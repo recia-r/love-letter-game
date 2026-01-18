@@ -87,5 +87,18 @@
                      wrap-cookies))
 
 
-#_(server)
-#_(def server (http/run-server #'wrapped-app {:port 8200}))
+(defonce server (atom nil))
+
+(defn stop-server []
+  (when-let [stop-fn @server]
+    (stop-fn)
+    (reset! server nil)))
+
+(defn start-server []
+  (stop-server)
+  (let [stop-fn (http/run-server #'wrapped-app {:port 8200})]
+    (reset! server stop-fn)))
+
+(defn restart-server []
+  (stop-server)
+  (start-server))
