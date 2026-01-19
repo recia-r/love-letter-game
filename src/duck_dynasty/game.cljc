@@ -249,14 +249,6 @@
     (advance-player state)))
 
 
-;; 1) fix the front end
-
-;; 2) multiple rounds
-
-;; 3) make use of the malli schema to validate the state
-;;     https://github.com/metosin/malli/blob/master/docs/function-schemas.md#defn-schemas
-
-
 
 
 

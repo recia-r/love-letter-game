@@ -7,6 +7,6 @@
  :builds {:app {:target :browser
                 :output-dir "target/public/app"
                 :asset-path "/app"
-                :modules {:main {:init-fn demo.core/init}}
-                :devtools {:after-load demo.core/reload!
+                :modules {:main {:init-fn client.core/init}}
+                :devtools {:after-load client.core/reload!
                            :watch-dir "public"}}}}

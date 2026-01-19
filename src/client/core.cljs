@@ -1,7 +1,7 @@
-(ns demo.core
+(ns client.core
   (:require
    [reagent.dom :as rdom]
-   [demo.ui :as ui]))
+   [client.ui :as ui]))
 
 (defn render! []
   (rdom/render
@@ -14,3 +14,4 @@
 (defn init []
   (ui/init)
   (render!))
+
