@@ -105,7 +105,7 @@
    :body (pr-str (rooms/joinable-rooms @state/rooms user-name))})
 
 
-(defn set-user-name [{:strs [user-name]}]
+(defn set-user-name [{:strs [new-user-name]}]
   {:status 200
-   :cookies {"dd-user-name" {:value user-name
+   :cookies {"dd-user-name" {:value new-user-name
                              :path "/"}}})

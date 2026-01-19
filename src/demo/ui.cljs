@@ -141,20 +141,20 @@
         is-current-player? (= @player-name current-player)]
     (when (not (dd/game-over? state))
       [:div.current-player
-      {:style {:background-color "#e3f2fd"
-               :padding "20px"
-               :border-radius "8px"
-               :margin "20px 0"}}
-      [:h2 {:style {:margin-top "0"}}
-       (str "Currently " current-player "'s turn")]
-      [player-hand-component state fns @player-name]
-      (when is-current-player?
-        [:div.playable-cards
-         {:style {:margin-top "20px"}}
-         (for [card hand]
-           ^{:key (str "play-" (:card/value card))}
-           [:div {:style {:margin-bottom "15px"}}
-            [play-card-form state fns current-player card]])])])))
+       {:style {:background-color "#e3f2fd"
+                :padding "20px"
+                :border-radius "8px"
+                :margin "20px 0"}}
+       [:h2 {:style {:margin-top "0"}}
+        (str "Currently " current-player "'s turn")]
+       [player-hand-component state fns @player-name]
+       (when is-current-player?
+         [:div.playable-cards
+          {:style {:margin-top "20px"}}
+          (for [card hand]
+            ^{:key (str "play-" (:card/value card))}
+            [:div {:style {:margin-bottom "15px"}}
+             [play-card-form state fns current-player card]])])])))
 
 (defn game-status-component [state _]
   [:div.game-status
@@ -177,7 +177,6 @@
 
 
 (defn set-user-name! [user-name]
-  (js/console.log "setting user name to" user-name)
   (-> (js/fetch "/api/user/set-name" #js {:method "POST"
                                           :body (doto (js/FormData.)
                                                   (.append "user-name" user-name))})
@@ -274,6 +273,13 @@
   [[_ {:keys [room-id]}]]
   (r/with-let
     [game-state (fetch-atom {:url (str "/api/game-state?room-id=" room-id)})
+     interval (js/setInterval
+               (fn []
+                 (when (not= (:state/current-player @game-state) @player-name)
+                   (-> (fetch {:url (str "/api/game-state?room-id=" room-id)})
+                       (.then (fn [edn-text]
+                                (reset! game-state edn-text))))))
+               1000)
      play-card! (fn [card-value target-player-name guessed-value]
                   (let [form-data (doto (js/FormData.)
                                     (.append "card" (str card-value)))]
@@ -305,7 +311,9 @@
               :padding "20px"
               :font-family "Arial, sans-serif"}}
      [game-status-component @game-state fns]
-     [outer-player-component @game-state fns]]))
+     [outer-player-component @game-state fns]]
+    (finally
+      (js/clearInterval interval))))
 
 
 (defn home-page []
@@ -365,10 +373,20 @@
     :page/game [game-page @page]
     :page/home [home-page]))
 
-;; if no name set, don't show rooms at all
-;; if name set, don't show form to change name (But show name as text)
+;; after setting name, refresh page (or other) to show list of rooms
 
 ;; move home page (rooms list) components and room/game page components to their own namespaces
 ;; might need a shared namespace for some client side fns
 
-;; pass room-id param for game fns
+;; pass room-id param for game fns (only return a single room from backend)
+
+;; when game is done, room state needs to be updated
+
+;; use reitit for page routes on frontend
+
+;; change demo directory to client
+
+
+;; use proper session for the cookie (and fix how the frontend gets the user's name)
+
+;; review "security"
