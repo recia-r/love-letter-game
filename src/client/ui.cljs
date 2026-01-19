@@ -4,7 +4,8 @@
    [client.game :as game]
    [client.home :as home]))
 
-(defn init [])
+(defn init [] 
+  (state/init-routing!))
 
 (defn app []
   (case (first @state/page)

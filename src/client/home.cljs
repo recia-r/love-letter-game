@@ -22,7 +22,7 @@
   (-> (js/fetch (str "/api/rooms/start-game?room-id=" room-id) #js {:method "POST"})
       (.then (fn [response] (.text response)))
       (.then (fn [_edn-text]
-               (reset! state/page [:page/game {:room-id room-id}])))))
+               (state/navigate-to! [:page/game {:room-id room-id}])))))
 
 (defn join-room-api [room-id]
   (-> (js/fetch (str "/api/rooms/join?room-id=" room-id) #js {:method "POST"})
@@ -55,7 +55,7 @@
     "Join Room"]
    [:button {:on-click (fn []
                          (if (= (:room/state room) :in-game)
-                           (reset! state/page [:page/game {:room-id (:room/id room)}])
+                           (state/navigate-to! [:page/game {:room-id (:room/id room)}])
                            (start-room-game (:room/id room))))
              :disabled (<= (count (:room/players room)) 1)
              :style {:padding "8px 16px"

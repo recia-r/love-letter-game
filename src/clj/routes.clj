@@ -9,10 +9,14 @@
 
 (defn match-route [request]
   (let [method (:request-method request)
-        uri (:uri request)]
+        uri (:uri request)
+        _ (println "uri" uri)]
     (cond
       ;; Static file routes
       (and (= method :get) (= uri "/"))
+      handlers/serve-index
+
+      (and (= method :get) (str/starts-with? uri "/room/"))
       handlers/serve-index
 
       (and (= method :get) (= uri "/app/main.js"))

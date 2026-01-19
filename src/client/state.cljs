@@ -33,3 +33,25 @@
                  (reset! a response))))
     a))
 
+(defn navigate-to! [page-vec]
+  (let [[page-type params] page-vec
+        path (if (= page-type :page/game)
+               (str "/room/" (:room-id params))
+               "/")]
+    (.pushState js/history nil "" path)
+    (reset! page page-vec)))
+
+(defn parse-url []
+  (let [pathname (.-pathname js/location)
+        room-id (str/replace pathname "/room/" "")]
+    (if (str/starts-with? pathname "/room/")
+      [:page/game {:room-id (uuid room-id)}]
+      [:page/home {}])))
+
+(defn init-routing! []
+  ;; Set initial page based on URL
+  (reset! page (parse-url))
+  ;; Handle browser back/forward
+  (.addEventListener js/window "popstate"
+                     (fn [_e]
+                       (reset! page (parse-url)))))
