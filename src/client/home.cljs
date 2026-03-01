@@ -5,13 +5,6 @@
    [cljs.reader :as reader]
    [client.state :as state]))
 
-(defn set-user-name! [user-name]
-  (-> (js/fetch "/api/user/set-name" #js {:method "POST"
-                                          :body (doto (js/FormData.)
-                                                  (.append "user-name" user-name))})
-      (.then (fn [_response]
-               (reset! state/player-name user-name)))))
-
 (defn create-room []
   (-> (js/fetch "/api/rooms/create" #js {:method "POST"})
       (.then (fn [response] (.text response)))
@@ -91,53 +84,18 @@
          [room-component room])])))
 
 (defn home-page []
-  (let [username-input (r/atom "")]
-    (fn []
-      [:<>
-       [:div.actions
-        {:style {:margin-top "30px" :text-align "center"}}
-        [:div {:style {:margin-bottom "15px"}}
-         (if @state/player-name
-           ;; Username already set in cookie - display as non-editable text
-           [:div {:style {:padding "8px 12px"
-                          :font-size "14px"
-                          :font-weight "bold"
-                          :color "#333"}}
-            (str "Username: " @state/player-name)]
-           ;; Username not set - show editable input with submit button
-           [:div {:style {:display "flex"
-                          :align-items "center"
-                          :justify-content "center"
-                          :gap "8px"}}
-            [:input {:type "text"
-                     :placeholder "Enter username"
-                     :value @username-input
-                     :on-change #(reset! username-input (-> % .-target .-value))
-                     :style {:padding "8px 12px"
-                             :font-size "14px"
-                             :border "1px solid #ccc"
-                             :border-radius "4px"
-                             :width "200px"}}]
-            [:button {:on-click #(when (not (str/blank? @username-input))
-                                   (set-user-name! @username-input))
-                      :disabled (str/blank? @username-input)
-                      :style {:padding "8px 16px"
-                              :background-color (if (str/blank? @username-input) "#ccc" "#4CAF50")
-                              :color "white"
-                              :border "none"
-                              :border-radius "4px"
-                              :cursor (if (str/blank? @username-input) "not-allowed" "pointer")
-                              :font-size "14px"}}
-             "Set Name"]])]
-        [:button {:on-click #(create-room)
-                  :style {:padding "10px 20px"
-                          :background-color "#2196F3"
-                          :color "white"
-                          :border "none"
-                          :border-radius "4px"
-                          :cursor "pointer"
-                          :font-size "16px"}}
-         "Create Room"]]
-       [player-rooms-component]
-       [joinable-rooms-component]])))
+  [:<> 
+   [:div.actions
+    {:style {:margin-top "30px" :text-align "center"}}
+    [:button {:on-click #(create-room)
+              :style {:padding "10px 20px"
+                      :background-color "#2196F3"
+                      :color "white"
+                      :border "none"
+                      :border-radius "4px"
+                      :cursor "pointer"
+                      :font-size "16px"}}
+     "Create Room"]]
+   [player-rooms-component]
+   [joinable-rooms-component]])
 

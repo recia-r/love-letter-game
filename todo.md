@@ -13,9 +13,12 @@
 ;; use proper session for the cookie (and fix how the frontend gets the user's name)
 
 ;; review "security"
-________
 
-;; 1) fix the front end
+fix the way we get user name
+
+auto-refresh lists fof games on home page
+
+when there is no game (game-state is nil) show differnet component. 
 
 ;; 2) multiple rounds
 
@@ -39,9 +42,9 @@ ________
 ;; /room/15
 ;;    page is polling  (poll? long polling? websockets?)
 ;;
-;;    if not logged in
+;;    TODO if not logged in
 ;;       show a "you're not logged in" message
-;;    if in "pre-game" state
+;;    ✅if in "pre-game" state
 ;;       if player is not part of room
 ;;          show a button to "join the room"
 ;;          when submit, add player to room
@@ -49,10 +52,10 @@ ________
 ;;          show who is in room
 ;;          "start game" button
 ;;             when submit, swap room with new game state
-;;    else  --if in game state
+;;    ✅else  --if in game state
 ;;       if player part of game
 ;;          show the game
-;;       else
+;;       TODO else
 ;;          show a "you're not part of this game" message
 ;;   else if in end of game state
 ;;       show end of game screen, 
@@ -62,11 +65,68 @@ ________
 ;;   if game does not exist
 ;;      show a "game not found" message
 
-;; front end will need two tabs to test
-
-;; when does a game get removed from the active games?
 
 
-;; routes namespace, which talks to the games management namespace and the game namespace
 
 )
+
+main.js edits DOM
+user action triggers event which is handled (request to back-end)
+front-end will put data from response into app-db
+components with changes will get re-rendered
+
+
+reagent: maintains a mapping between ratoms and components that deref them
+
+game-state 
+/  |   \
+c1 c2   c3
+
+
+         game-state
+         /   |    \
+      user cards other   (re-frame subs; reagent cursors or reactions)
+       |     \   /  |
+      c1      c2    c3
+
+
+browser makes request to localhost:8200
+index.html returned as this is defined in the handler for "/"
+requests main.js
+first fn called is core/init (in shadow edn file {:init-fn client.core/init})
+calls ui/init and render 
+
+top level render() (render fn takes top level fn and place to put it in the DOM/index.html)
+
+V
+
+nested compoment function calls (which subscribe/deref atoms)
+
+V
+
+tree of hiccup  (and creates/mutates the state of active component-ratom relationships described abive)
+
+V (reagent triggers entire or sub virtual-dom recalculation via react)     <------ changes of state trigger here
+
+virtual-dom-current    =>     virtual-dom-next   (react)
+
+ (lighterweight and faster to query;
+  changes to virtual-dom don't immediately cause expesive redrawing of the interface)
+
+
+V   (react applies the diff)
+
+
+DOM (in-memory tree of "nodes")
+
+V ---- drawing (expensive)
+
+interface drawn on screen
+
+V
+
+user interacts with something (or some js timeout happens)
+
+V
+
+changes the state  -----------------------------------------------------------------^
