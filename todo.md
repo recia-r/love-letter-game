@@ -3,15 +3,12 @@ IN PROGRESS
 
 NEXT
 
-
+when you have a card to drtaw, don't show action options
 
 INBOX
 
-;; move home page (rooms list) components and room/game page components to their own namespaces
-;; might need a shared namespace for some client side fns
 
 
-;; when game is done, room state needs to be updated
 
 ;; use reitit for page routes on frontend
 

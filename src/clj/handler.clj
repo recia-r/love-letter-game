@@ -41,6 +41,8 @@
            (dd/card-by-value (parse-long card))
            {:target-player-name target
             :guessed-card-value (when guessed-value (parse-long guessed-value))})
+    (when (dd/game-over? (get-in @state/rooms [room-id :room/game]) )
+      (swap! state/rooms rooms/end-game {:room-id room-id}))
     (return-game-state room-id)))
 
 (defn draw-card [{:strs [user-name room-id]}]
@@ -70,10 +72,6 @@
     (swap! state/rooms rooms/start-game {:room-id room-id
                                          :game-state (dd/new-game player-names (dd/create-deck))})
     (return-rooms-state)))
-
-(defn end-room-game [{:strs [room-id]}]
-  (swap! state/rooms rooms/end-game {:room-id (java.util.UUID/fromString room-id)})
-  (return-rooms-state))
 
 (defn replay-room-game [{:strs [room-id]}]
   (swap! state/rooms rooms/replay-game {:room-id (java.util.UUID/fromString room-id)})
