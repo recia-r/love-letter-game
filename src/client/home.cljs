@@ -63,25 +63,41 @@
 
 (defn joinable-rooms-component []
   (r/with-let
-    [joinable-rooms (state/fetch-atom {:url "/api/rooms/joinable"})]
+    [joinable-rooms (state/fetch-atom {:url "/api/rooms/joinable"})
+     interval (js/setInterval
+               (fn []
+                 (-> (state/fetch {:url "/api/rooms/joinable"})
+                     (.then (fn [edn-text]
+                              (reset! joinable-rooms edn-text)))))
+               1000)]
     (when (seq @joinable-rooms)
       [:div.joinable-rooms
        {:style {:margin-top "30px" :text-align "center"}}
        [:h3 "Rooms I Can Join"]
        (for [room @joinable-rooms]
          ^{:key (:room/id room)}
-         [room-component room])])))
+         [room-component room])])
+    (finally
+      (js/clearInterval interval))))
 
 (defn player-rooms-component []
   (r/with-let
-    [player-rooms (state/fetch-atom {:url "/api/rooms/player"})]
+    [player-rooms (state/fetch-atom {:url "/api/rooms/player"})
+     interval (js/setInterval
+               (fn []
+                 (-> (state/fetch {:url "/api/rooms/player"})
+                     (.then (fn [edn-text]
+                              (reset! player-rooms edn-text)))))
+               1000)]
     (when (seq @player-rooms)
       [:div.joinable-rooms
        {:style {:margin-top "30px" :text-align "center"}}
        [:h3 "Rooms I'm In"]
        (for [room @player-rooms]
          ^{:key (:room/id room)}
-         [room-component room])])))
+         [room-component room])])
+    (finally
+      (js/clearInterval interval))))
 
 (defn home-page []
   [:<> 

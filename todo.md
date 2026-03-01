@@ -1,9 +1,15 @@
-;; after setting name, refresh page (or other) to show list of rooms
+IN PROGRESS
+
+
+NEXT
+
+
+
+INBOX
 
 ;; move home page (rooms list) components and room/game page components to their own namespaces
 ;; might need a shared namespace for some client side fns
 
-;; pass room-id param for game fns (only return a single room from backend)
 
 ;; when game is done, room state needs to be updated
 
@@ -16,7 +22,6 @@
 
 fix the way we get user name
 
-auto-refresh lists fof games on home page
 
 when there is no game (game-state is nil) show differnet component. 
 
