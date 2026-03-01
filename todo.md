@@ -1,24 +1,25 @@
 IN PROGRESS
 
+on game end screen, some way to get back to home page
+
 
 NEXT
 
-when you have a card to drtaw, don't show action options
+on game end screen, button to "replay" which moves both players into a new game
+
 
 INBOX
 
-
+;; w/ raf - use proper session for the cookie (and fix how the frontend gets the user's name)
 
 
 ;; use reitit for page routes on frontend
 
 
-;; use proper session for the cookie (and fix how the frontend gets the user's name)
 
-;; review "security"
+;; review "security" - broadly, think about all the ways someone might try to cheat
 
 fix the way we get user name
-
 
 when there is no game (game-state is nil) show differnet component. 
 

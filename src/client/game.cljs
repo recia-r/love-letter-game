@@ -118,7 +118,7 @@
        [:h2 {:style {:margin-top "0"}}
         (str "Currently " current-player "'s turn")]
        [player-hand-component state fns @state/player-name]
-       (when is-current-player?
+       (when (and is-current-player? (= (count hand) 2))
          [:div.playable-cards
           {:style {:margin-top "20px"}}
           (for [card hand]
