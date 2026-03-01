@@ -1,7 +1,5 @@
 IN PROGRESS
 
-on game end screen, some way to get back to home page
-
 
 NEXT
 

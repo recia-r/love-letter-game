@@ -138,7 +138,17 @@
        [:div
         [:h2 {:style {:color "#856404"}} "Game Over!"]
         [:p {:style {:font-size "1.2em" :font-weight "bold"}}
-         (str "Winner: " winner-text)]])
+         (str "Winner: " winner-text)]
+        [:button {:on-click #(state/navigate-to! [:page/home {}])
+                  :style {:margin-top "15px"
+                          :padding "10px 20px"
+                          :background-color "#2196F3"
+                          :color "white"
+                          :border "none"
+                          :border-radius "4px"
+                          :cursor "pointer"
+                          :font-size "16px"}}
+         "Back to Home"]])
      [:div
       [:p (str "Active Players: " (str/join ", " (dd/active-players state)))]
       [:p (str "Round: " (:state/round state) " / " (:state/rounds state))]
