@@ -41,7 +41,7 @@
            (dd/card-by-value (parse-long card))
            {:target-player-name target
             :guessed-card-value (when guessed-value (parse-long guessed-value))})
-    (when (dd/game-over? (get-in @state/rooms [room-id :room/game]) )
+    (when (dd/game-over? (get-in @state/rooms [room-id :room/game]))
       (swap! state/rooms rooms/end-game {:room-id room-id}))
     (return-game-state room-id)))
 

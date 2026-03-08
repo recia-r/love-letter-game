@@ -126,6 +126,13 @@
             [:div {:style {:margin-bottom "15px"}}
              [play-card-form state fns current-player card]])])])))
 
+(defn round-scores-display [round-winners]
+  (let [scores (for [[player wins] round-winners]
+                 (str player ": " wins))]
+    (if (empty? scores)
+      "No rounds completed yet"
+      (str/join " | " scores))))
+
 (defn game-status-component [state _]
   [:div.game-status
    {:style {:background-color "#fff3cd"
@@ -138,7 +145,9 @@
        [:div
         [:h2 {:style {:color "#856404"}} "Game Over!"]
         [:p {:style {:font-size "1.2em" :font-weight "bold"}}
-         (str "Winner: " winner-text)]
+         (str winner-text " wins the game!")]
+        [:p {:style {:font-size "1em" :margin-top "10px"}}
+         (str "Final Score: " (round-scores-display (:state/round-win-counts state)))]
         [:button {:on-click #(state/navigate-to! [:page/home {}])
                   :style {:margin-top "15px"
                           :padding "10px 20px"
@@ -150,8 +159,11 @@
                           :font-size "16px"}}
          "Back to Home"]])
      [:div
+      [:p (str "Round " (:state/round state) " of " dd/best-of
+               " (First to " dd/wins-needed " wins)")]
+      [:p {:style {:font-weight "bold"}}
+       (str "Score: " (round-scores-display (:state/round-win-counts state)))]
       [:p (str "Active Players: " (str/join ", " (dd/active-players state)))]
-      [:p (str "Round: " (:state/round state) " / " (:state/rounds state))]
       [:p (str "Remaining Cards: " (count (:state/deck state)))]])])
 
 (defn game-page

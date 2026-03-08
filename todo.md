@@ -11,6 +11,20 @@ INBOX
 ;; w/ raf - use proper session for the cookie (and fix how the frontend gets the user's name)
 
 
+;; "5" -> in state (:state/rounds)
+;; "3" -> hardcoded in two functions
+
+;; either:
+;;   3 or 5 in state
+;;   the other as a function
+
+;; 3 or 5 as a constant defined in game
+;;   the other as a function
+
+
+for rounds, use new new-round in new-game
+move some of handler/play-card into game/play-card
+ties
 ;; use reitit for page routes on frontend
 
 

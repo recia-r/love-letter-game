@@ -17,10 +17,9 @@
                        :state/player-hands {}
                        :state/protected-players #{}
                        :state/discard-pile []
-                       :state/rounds 10
                        :state/round 1
-                       :state/round-winners []
-                       :state/game-winner nil
+                       :state/round-win-counts []
+                       :state/game-winners nil
                        :state/abbot-reveal nil}
            :room/state :pre-game}}
   )

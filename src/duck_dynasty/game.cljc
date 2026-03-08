@@ -14,6 +14,9 @@
 
 (def minion-guessable-card-values #{2 3 4 5 6 7 9 0})
 
+(def best-of 5)
+(def wins-needed (inc (quot best-of 2)))
+
 ;; MISC
 
 (defn card-by-value [value]
@@ -56,10 +59,9 @@
    [:state/player-hands [:map-of PlayerName [:vector {:min 1 :max 2} Card]]]
    [:state/protected-players [:set PlayerName]]
    [:state/discard-pile [:vector Card]]
-   [:state/rounds :int]
    [:state/round :int]
-   [:state/round-winners [:vector PlayerName]]
-   [:state/game-winner PlayerName]])
+   [:state/round-win-counts [:map-of PlayerName :int]]
+   [:state/game-winners [:vector PlayerName]]])
 
 ;; STATE GETTERS
 
@@ -97,7 +99,8 @@
 (defn eliminated-player? [state player-name]
   (nil? (player-card state player-name)))
 
-(defn game-over? [state]
+;; Round logic (single round within a game)
+(defn round-over? [state]
   (or (= (count (active-players state)) 1) ;; only one player left
       (empty? (:state/deck state)))) ;; no cards left in deck
 
@@ -109,7 +112,7 @@
        second
        (map second)))
 
-(defn game-winners [state]
+(defn round-winners [state]
   (cond
     (empty? (:state/deck state))
     (players-with-highest-value-card state)
@@ -119,26 +122,45 @@
 
     :else nil))
 
+;; Game logic (best of N rounds)
+(defn game-over? [state]
+  (some #(>= % wins-needed) (vals (:state/round-win-counts state))))
 
+(defn game-winners [state]
+  (when (game-over? state)
+    (mapv key (filter #(>= (val %) wins-needed) (:state/round-win-counts state)))))
 ;; STATE ACTIONS
 ;; take state and other parameters
 ;; return new state
 
-(defn new-game [player-names deck]
-  (let [players (vec player-names)
+(defn set-up-round [state deck]
+  (let [players (:state/players state)
         initial-setup (deal-initial-cards players deck)]
-    {:state/players players
-     :state/current-player (first players)
-     :state/deck (:deck initial-setup)
-     :state/hidden-card (:hidden-card initial-setup)
-     :state/player-hands (:player-hands initial-setup)
-     :state/protected-players #{}
-     :state/discard-pile []
-     :state/rounds 10
-     :state/round 1
-     :state/round-winners []
-     :state/game-winner nil
-     :state/abbot-reveal nil}))
+    (assoc state
+           :state/current-player (first players)
+           :state/deck (:deck initial-setup)
+           :state/hidden-card (:hidden-card initial-setup)
+           :state/player-hands (:player-hands initial-setup)
+           :state/protected-players #{}
+           :state/discard-pile []
+           :state/abbot-reveal nil)))
+
+(defn new-game [player-names deck]
+  (-> {:state/players (vec player-names)
+       :state/round 1
+       :state/round-win-counts {}
+       :state/game-winners nil}
+      (set-up-round deck)))
+
+(defn transition-to-next-round
+  "Start the next round after recording the round winners.
+   Resets deck, hands, protected players while keeping round-winners and players."
+  [state round-winner-names]
+  (-> (reduce (fn [s winner] (update-in s [:state/round-win-counts winner] (fnil inc 0)))
+              state
+              round-winner-names)
+      (update :state/round inc)
+      (set-up-round (create-deck))))
 
 (defn advance-player [state]
   (->> state
@@ -246,7 +268,13 @@
                       7 (play-queen state player-name extra-args)
                       9 (play-king state player-name extra-args)
                       0 (play-princeling state player-name extra-args))))]
-    (advance-player state)))
+    (if (round-over? state)
+      (let [winners (round-winners state)
+            state (transition-to-next-round state winners)]
+        (if (game-over? state)
+          (assoc state :state/game-winners (game-winners state))
+          state))
+      (advance-player state))))
 
 
 
