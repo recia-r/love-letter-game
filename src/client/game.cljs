@@ -166,10 +166,33 @@
       [:p (str "Active Players: " (str/join ", " (dd/active-players state)))]
       [:p (str "Remaining Cards: " (count (:state/deck state)))]])])
 
+(defn new-round-screen [round on-start]
+  [:div {:style {:display "flex"
+                 :flex-direction "column"
+                 :align-items "center"
+                 :justify-content "center"
+                 :min-height "300px"
+                 :padding "40px"}}
+   [:h1 {:style {:font-size "2.5em"
+                 :margin-bottom "30px"
+                 :color "#333"}}
+    (str "Round " round)]
+   [:button {:on-click on-start
+             :style {:padding "15px 40px"
+                     :background-color "#4CAF50"
+                     :color "white"
+                     :border "none"
+                     :border-radius "8px"
+                     :cursor "pointer"
+                     :font-size "1.2em"}}
+    "Start"]])
+
 (defn game-page
   [[_ {:keys [room-id]}]]
   (r/with-let
     [game-state (state/fetch-atom {:url (str "/api/game-state?room-id=" room-id)})
+     round-started (r/atom false)
+     last-round (r/atom nil)
      interval (js/setInterval
                (fn []
                  (when (not= (:state/current-player @game-state) @state/player-name)
@@ -202,13 +225,21 @@
                                 (js/console.error "Error drawing card:" error)))))
      fns {:play-card! play-card!
           :draw-card! draw-card!}]
-    [:div.game-page
-     {:style {:max-width "800px"
-              :margin "0 auto"
-              :padding "20px"
-              :font-family "Arial, sans-serif"}}
-     [game-status-component @game-state fns]
-     [outer-player-component @game-state fns]]
+    (let [state @game-state
+          current-round (:state/round state)]
+      (when (not= current-round @last-round)
+        (reset! last-round current-round)
+        (reset! round-started false))
+      [:div.game-page
+       {:style {:max-width "800px"
+                :margin "0 auto"
+                :padding "20px"
+                :font-family "Arial, sans-serif"}}
+       (if (and (not @round-started) (empty? (:state/discard-pile state)) (not (dd/game-over? state)))
+         [new-round-screen current-round #(reset! round-started true)]
+         (list
+          ^{:key "status"} [game-status-component state fns]
+          ^{:key "player"} [outer-player-component state fns]))])
     (finally
       (js/clearInterval interval))))
 

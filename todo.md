@@ -3,39 +3,27 @@ IN PROGRESS
 
 NEXT
 
-on game end screen, button to "replay" which moves both players into a new game
+
 
 
 INBOX
 
 ;; w/ raf - use proper session for the cookie (and fix how the frontend gets the user's name)
 
+;; abbot show 
 
-;; "5" -> in state (:state/rounds)
-;; "3" -> hardcoded in two functions
+on game end screen, button to "replay" which moves both players into a new game
 
-;; either:
-;;   3 or 5 in state
-;;   the other as a function
-
-;; 3 or 5 as a constant defined in game
-;;   the other as a function
-
-
-for rounds, use new new-round in new-game
-move some of handler/play-card into game/play-card
-ties
+;; a log of what happened
 ;; use reitit for page routes on frontend
 
+winner of previous round should start next round
+trying to access a room that doesnt exist should return 404
 
 
 ;; review "security" - broadly, think about all the ways someone might try to cheat
 
 fix the way we get user name
-
-when there is no game (game-state is nil) show differnet component. 
-
-;; 2) multiple rounds
 
 ;; 3) make use of the malli schema to validate the state
 ;;     https://github.com/metosin/malli/blob/master/docs/function-schemas.md#defn-schemas
