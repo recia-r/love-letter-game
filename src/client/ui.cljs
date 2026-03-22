@@ -6,8 +6,9 @@
    [client.home :as home]
    [reagent.core :as r]))
 
-(defn init [] 
-  (state/init-routing!))
+(defn init []
+  (state/init-routing!)
+  (state/fetch-user-name!))
 
 (defn set-user-name! [user-name]
   (-> (js/fetch "/api/user/set-name" #js {:method "POST"

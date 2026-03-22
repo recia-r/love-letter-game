@@ -1,11 +1,12 @@
 (ns clj.routes
-  (:require
-   [clj.handler :as handlers]
-   [clojure.string :as str]
-   [org.httpkit.server :as http]
-   [ring.middleware.params :refer [wrap-params]]
-   [ring.middleware.cookies :refer [wrap-cookies]]
-   [ring.middleware.multipart-params :refer [wrap-multipart-params]]))
+  (:require [clj.handler :as handlers]
+            [clojure.string :as str]
+            [org.httpkit.server :as http]
+            [ring.middleware.cookies :refer [wrap-cookies]]
+            [ring.middleware.multipart-params :refer [wrap-multipart-params]]
+            [ring.middleware.params :refer [wrap-params]]
+            [ring.middleware.session :refer [wrap-session]]
+            [ring.middleware.session.memory :as memory]))
 
 (defn match-route [request]
   (let [method (:request-method request)
@@ -29,6 +30,9 @@
       handlers/serve-card-image
 
       ;; PLAYER routes
+
+      (and (= method :get) (= uri "/api/user/me"))
+      handlers/get-user-name
 
       (and (= method :post) (= uri "/api/user/set-name"))
       handlers/set-user-name
@@ -69,7 +73,7 @@
 
 (defn app [request]
   (if-let [handler-fn (match-route request)]
-    (handler-fn (assoc (:params request) "user-name" (get-in request [:cookies "dd-user-name" :value])))
+    (handler-fn (assoc (:params request) "user-name" (get-in request [:session "user-name"])))
     {:status 404
      :headers {"Content-Type" "text/html"}
      :body "Page not found"}))
@@ -79,19 +83,24 @@
 ;; Main
 ;;;;;;;;;;;;;;;;;
 
+(defonce sessions (atom {}))
+
+@sessions
+
 (def wrapped-app (-> app
                      wrap-multipart-params
                      wrap-params
-                     wrap-cookies))
+                     wrap-cookies
+                     (wrap-session {:store (memory/memory-store sessions)})))
 
 
 (defonce server (atom nil))
 
 (defn -main []
   (when @server
-    (.stop @server))
+    (@server))
   (reset! server (http/run-server #'wrapped-app {:port 8200})))
 
 #_(-main)
 
-#_(.stop @server)
+#_(@server)

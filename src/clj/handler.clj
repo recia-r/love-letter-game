@@ -103,7 +103,11 @@
    :body (pr-str (rooms/joinable-rooms @state/rooms user-name))})
 
 
+(defn get-user-name [{:strs [user-name]}]
+  {:status 200
+   :headers {"Content-Type" "application/edn"}
+   :body (pr-str {:user-name user-name})})
+
 (defn set-user-name [{:strs [new-user-name]}]
   {:status 200
-   :cookies {"dd-user-name" {:value new-user-name
-                             :path "/"}}})
+   :session {"user-name" new-user-name}})

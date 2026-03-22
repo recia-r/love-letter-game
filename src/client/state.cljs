@@ -9,13 +9,15 @@
 
 (defonce page (r/atom [:page/home {}]))
 
-(defn get-user-name []
-  (let [cookie-name "dd-user-name="]
-    (some->> (str/split (.-cookie js/document) #";\s*")
-             (some #(when (str/starts-with? % cookie-name)
-                      (subs % (count cookie-name)))))))
+(defonce player-name (r/atom nil))
 
-(defonce player-name (r/atom (get-user-name)))
+(defn fetch-user-name! []
+  (-> (js/fetch "/api/user/me")
+      (.then (fn [response] (.text response)))
+      (.then (fn [edn-text]
+               (let [{:keys [user-name]} (reader/read-string edn-text)]
+                 (when user-name
+                   (reset! player-name user-name)))))))
 
 ;; Fetch utilities
 (defn fetch [{:keys [url]}]
