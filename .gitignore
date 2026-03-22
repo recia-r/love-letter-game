@@ -67,3 +67,6 @@ profiles.clj.bak
 .cpcache/
 .hgignore
 .nrepl-port
+
+# Session data
+data/

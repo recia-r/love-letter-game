@@ -6,7 +6,8 @@
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.session :refer [wrap-session]]
-            [ring.middleware.session.memory :as memory]))
+            [ring.middleware.session.memory :as memory]
+            [duratom.core :refer [duratom]]))
 
 (defn match-route [request]
   (let [method (:request-method request)
@@ -83,9 +84,9 @@
 ;; Main
 ;;;;;;;;;;;;;;;;;
 
-(defonce sessions (atom {}))
-
-@sessions
+(defonce sessions (duratom :local-file
+                           :file-path "data/sessions.edn"
+                           :init {}))
 
 (def wrapped-app (-> app
                      wrap-multipart-params
