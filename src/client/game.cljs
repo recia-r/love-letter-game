@@ -166,6 +166,37 @@
       [:p (str "Active Players: " (str/join ", " (dd/active-players state)))]
       [:p (str "Remaining Cards: " (count (:state/deck state)))]])])
 
+(defn abbot-reveal-modal [reveal dismiss!]
+  [:div {:style {:position "fixed"
+                 :top "0" :left "0"
+                 :width "100%" :height "100%"
+                 :background-color "rgba(0,0,0,0.6)"
+                 :display "flex"
+                 :align-items "center"
+                 :justify-content "center"
+                 :z-index "1000"}}
+   [:div {:style {:background-color "#fff"
+                  :border-radius "12px"
+                  :padding "30px"
+                  :text-align "center"
+                  :max-width "300px"
+                  :width "90%"
+                  :box-shadow "0 8px 32px rgba(0,0,0,0.3)"}}
+    [:h2 {:style {:margin-top "0" :margin-bottom "8px"}} "Abbot Reveal"]
+    [:p {:style {:color "#555" :margin-bottom "20px"}}
+     (str (:abbot-reveal/target-player-name reveal) "'s card:")]
+    [card-component (:abbot-reveal/card reveal)]
+    [:button {:on-click dismiss!
+              :style {:margin-top "20px"
+                      :padding "10px 24px"
+                      :background-color "#4CAF50"
+                      :color "white"
+                      :border "none"
+                      :border-radius "6px"
+                      :cursor "pointer"
+                      :font-size "1em"}}
+     "Got it"]]])
+
 (defn new-round-screen [round on-start]
   [:div {:style {:display "flex"
                  :flex-direction "column"
@@ -223,10 +254,20 @@
                                (reset! game-state (reader/read-string edn-text))))
                       (.catch (fn [error]
                                 (js/console.error "Error drawing card:" error)))))
+     dismiss-abbot-reveal! (fn []
+                             (-> (js/fetch (str "/api/dismiss-abbot-reveal?room-id=" room-id) #js {:method "POST"})
+                                 (.then (fn [response] (.text response)))
+                                 (.then (fn [edn-text]
+                                          (reset! game-state (reader/read-string edn-text))))
+                                 (.catch (fn [error]
+                                           (js/console.error "Error dismissing abbot reveal:" error)))))
      fns {:play-card! play-card!
           :draw-card! draw-card!}]
     (let [state @game-state
-          current-round (:state/round state)]
+          current-round (:state/round state)
+          abbot-reveal (:state/abbot-reveal state)
+          my-abbot-reveal (when (= @state/player-name (:abbot-reveal/abbot-player-name abbot-reveal))
+                            abbot-reveal)]
       (when (not= current-round @last-round)
         (reset! last-round current-round)
         (reset! round-started false))
@@ -235,6 +276,8 @@
                 :margin "0 auto"
                 :padding "20px"
                 :font-family "Arial, sans-serif"}}
+       (when my-abbot-reveal
+         [abbot-reveal-modal my-abbot-reveal dismiss-abbot-reveal!])
        (if (and (not @round-started) (empty? (:state/discard-pile state)) (not (dd/game-over? state)))
          [new-round-screen current-round #(reset! round-started true)]
          (list

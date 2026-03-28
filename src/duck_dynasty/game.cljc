@@ -251,6 +251,9 @@
 (defn play-princeling [state _player-name _extra-args]
   state)
 
+(defn clear-abbot-reveal [state]
+  (assoc state :state/abbot-reveal nil))
+
 (defn play-card [state player-name card extra-args]
   {:pre [(contains? (set (player-hand state player-name)) card)]}
   (let [state (remove-card-from-hand-upon-play state player-name card)

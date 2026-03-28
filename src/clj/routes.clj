@@ -48,6 +48,9 @@
       (and (= method :post) (= uri "/api/draw-card"))
       handlers/draw-card
 
+      (and (= method :post) (= uri "/api/dismiss-abbot-reveal"))
+      handlers/dismiss-abbot-reveal
+
       ;; Room routes
       (and (= method :post) (= uri "/api/rooms/create"))
       handlers/create-room

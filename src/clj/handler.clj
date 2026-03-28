@@ -50,6 +50,11 @@
     (swap! state/rooms update-in [room-id :room/game] dd/draw-card user-name)
     (return-game-state room-id)))
 
+(defn dismiss-abbot-reveal [{:strs [room-id]}]
+  (let [room-id (java.util.UUID/fromString room-id)]
+    (swap! state/rooms update-in [room-id :room/game] dd/clear-abbot-reveal)
+    (return-game-state room-id)))
+
 ;; Room handlers
 (defn return-rooms-state []
   ;; TODO probably don't want to be returning all of rooms/state
