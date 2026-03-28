@@ -95,7 +95,8 @@
                      wrap-multipart-params
                      wrap-params
                      wrap-cookies
-                     (wrap-session {:store (memory/memory-store sessions)})))
+                     (wrap-session {:store (memory/memory-store sessions)
+                                    :cookie-attrs {:max-age 2147483647}})))
 
 
 (defonce server (atom nil))

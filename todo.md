@@ -3,44 +3,7 @@ IN PROGRESS
 
 NEXT
 
-; w/ raf - use proper session for the cookie (and fix how the frontend gets the user's name)
-
-;; 3 ways to do "secure" "tamper-proof" identity cookies
-
-;; to create an account, enter name + password
-
-;; store that
-
-;; to log in ("authentication")
-;; ask for username, password; look them up, then...
-;; want to store a user's id in a cookie, in a tamper proof way
-
-;; v1) encryption   ring.mddleware.session.cookie
-;;       message + secret ==f1==> 034gh203...gh023g4h
-;;       034gh203...gh023g4h + secret ==f2==> message
-;;
-;;       + don't need to store anything in the backend
-
-;; v2) signing
-;;       message + secret ==f1==> message + 1135...g23g ("hmac" / "message authenitcation code")
-;;       message + 1135...g23g + secret ==f2==>  valid / invalid
-;;
-;;       + compared to encryption, much smaller size and faster
-;;       + like encryption, dont' need to store anything in backend
-
-;; v3) session ids ring.mddleware.session.memory <== will use this one
-;;     generate a large random number (that can't be statistically guessed)
-;;     store in the backend  {random-number-for-user-1 user-1-id
-                              random-number-for-user-2 user-2-id}
-;;     give the number as a cookie
-;;     when a request comes in (with the number in the cookie), look up the corresponding user-id
-;;
-;;     + makes it easy to track all the devices where a user is logged in, and log them out independently
-
 INBOX
-
-
-;; abbot show 
 
 on game end screen, button to "replay" which moves both players into a new game
 
@@ -50,10 +13,7 @@ on game end screen, button to "replay" which moves both players into a new game
 winner of previous round should start next round
 trying to access a room that doesnt exist should return 404
 
-
 ;; review "security" - broadly, think about all the ways someone might try to cheat
-
-fix the way we get user name
 
 ;; 3) make use of the malli schema to validate the state
 ;;     https://github.com/metosin/malli/blob/master/docs/function-schemas.md#defn-schemas
@@ -163,3 +123,36 @@ user interacts with something (or some js timeout happens)
 V
 
 changes the state  -----------------------------------------------------------------^
+
+
+;; 3 ways to do "secure" "tamper-proof" identity cookies
+
+;; to create an account, enter name + password
+
+;; store that
+
+;; to log in ("authentication")
+;; ask for username, password; look them up, then...
+;; want to store a user's id in a cookie, in a tamper proof way
+
+;; v1) encryption   ring.mddleware.session.cookie
+;;       message + secret ==f1==> 034gh203...gh023g4h
+;;       034gh203...gh023g4h + secret ==f2==> message
+;;
+;;       + don't need to store anything in the backend
+
+;; v2) signing
+;;       message + secret ==f1==> message + 1135...g23g ("hmac" / "message authenitcation code")
+;;       message + 1135...g23g + secret ==f2==>  valid / invalid
+;;
+;;       + compared to encryption, much smaller size and faster
+;;       + like encryption, dont' need to store anything in backend
+
+;; v3) session ids ring.mddleware.session.memory <== will use this one
+;;     generate a large random number (that can't be statistically guessed)
+;;     store in the backend  {random-number-for-user-1 user-1-id
+                              random-number-for-user-2 user-2-id}
+;;     give the number as a cookie
+;;     when a request comes in (with the number in the cookie), look up the corresponding user-id
+;;
+;;     + makes it easy to track all the devices where a user is logged in, and log them out independently
