@@ -23,15 +23,27 @@
         image-path (str "resources/cardimage/" filename)]
     (file-response image-path)))
 
-(defn return-game-state [room-id]
+(def hidden-card {:card/hidden true})
+
+(defn scrub-game-state [game-state player-name]
+  (-> game-state
+      (update :state/deck #(mapv (constantly hidden-card) %))
+      (dissoc :state/hidden-card)
+      (update :state/player-hands update-vals
+              (fn [hand] (mapv (constantly hidden-card) hand)))
+      (assoc-in [:state/player-hands player-name]
+                (get-in game-state [:state/player-hands player-name]))
+      (update :state/abbot-reveal #(when (= player-name (:abbot-reveal/abbot-player-name %)) %))))
+
+(defn return-game-state [room-id player-name]
   {:status 200
    :headers {"Content-Type" "application/edn"
              "Access-Control-Allow-Origin" "*"}
-   :body (pr-str (:room/game (rooms/get-room @state/rooms {:room-id room-id})))})
+   :body (pr-str (scrub-game-state (:room/game (rooms/get-room @state/rooms {:room-id room-id})) player-name))})
 
 ;; API handlers
-(defn get-game-state [{:strs [room-id]}]
-  (return-game-state (java.util.UUID/fromString room-id)))
+(defn get-game-state [{:strs [room-id user-name]}]
+  (return-game-state (java.util.UUID/fromString room-id) user-name))
 
 (defn play-card [{:strs [card target guessed-value user-name room-id]}]
   (let [room-id (java.util.UUID/fromString room-id)]
@@ -43,17 +55,17 @@
             :guessed-card-value (when guessed-value (parse-long guessed-value))})
     (when (dd/game-over? (get-in @state/rooms [room-id :room/game]))
       (swap! state/rooms rooms/end-game {:room-id room-id}))
-    (return-game-state room-id)))
+    (return-game-state room-id user-name)))
 
 (defn draw-card [{:strs [user-name room-id]}]
   (let [room-id (java.util.UUID/fromString room-id)]
     (swap! state/rooms update-in [room-id :room/game] dd/draw-card user-name)
-    (return-game-state room-id)))
+    (return-game-state room-id user-name)))
 
-(defn dismiss-abbot-reveal [{:strs [room-id]}]
+(defn dismiss-abbot-reveal [{:strs [room-id user-name]}]
   (let [room-id (java.util.UUID/fromString room-id)]
     (swap! state/rooms update-in [room-id :room/game] dd/clear-abbot-reveal)
-    (return-game-state room-id)))
+    (return-game-state room-id user-name)))
 
 ;; Room handlers
 (defn return-rooms-state []
