@@ -197,6 +197,33 @@
                       :font-size "1em"}}
      "Got it"]]])
 
+(defn game-log-component [log]
+  [:div.game-log
+   {:style {:background-color "#f5f5f5"
+            :border "1px solid #ddd"
+            :border-radius "8px"
+            :padding "15px"
+            :margin "20px 0"}}
+   [:h3 {:style {:margin-top "0" :margin-bottom "10px" :font-size "1em" :color "#555"}} "Game Log"]
+   (if (empty? log)
+     [:p {:style {:color "#999" :font-style "italic" :margin "0"}} "No actions yet."]
+     [:ul {:style {:list-style "none"
+                   :margin "0"
+                   :padding "0"
+                   :max-height "200px"
+                   :overflow-y "auto"
+                   :display "flex"
+                   :flex-direction "column-reverse"}}
+      (map-indexed
+       (fn [i entry]
+         ^{:key i}
+         [:li {:style {:padding "4px 0"
+                       :border-bottom "1px solid #eee"
+                       :font-size "0.9em"
+                       :color "#333"}}
+          (:message/content entry)])
+       (reverse log))])])
+
 (defn new-round-screen [round on-start]
   [:div {:style {:display "flex"
                  :flex-direction "column"
@@ -282,7 +309,8 @@
          [new-round-screen current-round #(reset! round-started true)]
          (list
           ^{:key "status"} [game-status-component state fns]
-          ^{:key "player"} [outer-player-component state fns]))])
+          ^{:key "player"} [outer-player-component state fns]
+          ^{:key "log"} [game-log-component (:state/log state)]))])
     (finally
       (js/clearInterval interval))))
 

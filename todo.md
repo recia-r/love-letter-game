@@ -18,6 +18,7 @@ trying to access a room that doesnt exist should return 404
 ;; 3) make use of the malli schema to validate the state
 ;;     https://github.com/metosin/malli/blob/master/docs/function-schemas.md#defn-schemas
 
+deploy it live
 
 (comment
 

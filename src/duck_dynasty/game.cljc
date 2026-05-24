@@ -149,7 +149,8 @@
   (-> {:state/players (vec player-names)
        :state/round 1
        :state/round-win-counts {}
-       :state/game-winners nil}
+       :state/game-winners nil
+       :state/log []}
       (set-up-round deck)))
 
 (defn transition-to-next-round
@@ -270,7 +271,10 @@
                       6 (play-fool state player-name extra-args)
                       7 (play-queen state player-name extra-args)
                       9 (play-king state player-name extra-args)
-                      0 (play-princeling state player-name extra-args))))]
+                      0 (play-princeling state player-name extra-args))))
+        log-entry {:message/content (str player-name " played " (:card/value card) " - " (:card/name card))
+                   :message/visibility (set (:state/players state))}
+        state (update state :state/log conj log-entry)]
     (if (round-over? state)
       (let [winners (round-winners state)
             state (transition-to-next-round state winners)]

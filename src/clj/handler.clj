@@ -33,7 +33,8 @@
               (fn [hand] (mapv (constantly hidden-card) hand)))
       (assoc-in [:state/player-hands player-name]
                 (get-in game-state [:state/player-hands player-name]))
-      (update :state/abbot-reveal #(when (= player-name (:abbot-reveal/abbot-player-name %)) %))))
+      (update :state/abbot-reveal #(when (= player-name (:abbot-reveal/abbot-player-name %)) %))
+      (update :state/log (fn [log] (filterv #(contains? (:message/visibility %) player-name) log)))))
 
 (defn return-game-state [room-id player-name]
   {:status 200

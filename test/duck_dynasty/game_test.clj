@@ -192,6 +192,44 @@
      (:state/current-player))
  := "Bob"
 
+ "Log entry is added after playing a card mid-round"
+ (-> (dd/new-game ["Alice" "Bob"] (fake-deck
+                                   2 ;; alice deal
+                                   3 ;; bob deal
+                                   1 ;; hidden
+                                   4 ;; alice draw
+                                   ))
+     (dd/draw-card "Alice")
+     (dd/play-card "Alice" (dd/card-by-value 2) {:target-player-name "Bob"})
+     (get-in [:state/log 0 :message/content]))
+ := "Alice played 2 - Abbot"
+
+ "Log visibility includes all players"
+ (-> (dd/new-game ["Alice" "Bob"] (fake-deck
+                                   2 ;; alice deal
+                                   3 ;; bob deal
+                                   1 ;; hidden
+                                   4 ;; alice draw
+                                   ))
+     (dd/draw-card "Alice")
+     (dd/play-card "Alice" (dd/card-by-value 2) {:target-player-name "Bob"})
+     (get-in [:state/log 0 :message/visibility]))
+ := #{"Alice" "Bob"}
+
+ "Log persists across round transition"
+ (-> (dd/new-game ["Alice" "Bob"] (fake-deck
+                                   1 ;; alice deal
+                                   5 ;; bob deal
+                                   0 ;; hidden
+                                   1 ;; alice draw
+                                   ))
+     (dd/draw-card "Alice")
+     (dd/play-card "Alice" (dd/card-by-value 1) {:target-player-name "Bob"
+                                                  :guessed-card-value 5})
+     (get :state/log)
+     count)
+ := 1
+
  "Playing full round of game"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck
                                    1 ;; alice deal
