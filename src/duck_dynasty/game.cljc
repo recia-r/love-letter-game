@@ -37,6 +37,9 @@
      :hidden-card hidden-card
      :player-hands (zipmap players (map vector initial-cards))}))
 
+(defn log [state message]
+  (update state :state/log conj message))
+
 ;; STATE SPEC
 
 (def PlayerName :string)
@@ -207,36 +210,51 @@
 (defn play-minion [state _player-name {:keys [target-player-name guessed-card-value]}]
   {:pre [(contains? minion-guessable-card-values guessed-card-value)
          (contains? (set (targetable-players state 1)) target-player-name)]}
-  (let [target-players-card-value (:card/value (player-card state target-player-name))]
-    (if (= target-players-card-value guessed-card-value)
-      (eliminate-player state target-player-name)
-      state)))
+  (let [correct? (= (:card/value (player-card state target-player-name)) guessed-card-value)]
+    (-> state
+        (cond-> correct? (eliminate-player target-player-name))
+        (log {:message/content (if correct?
+                                 (str target-player-name " was eliminated")
+                                 "Minion guess was wrong")
+              :message/visibility (set (:state/players state))}))))
 
 (defn play-abbot [state player-name {:keys [target-player-name]}]
   {:pre [(contains? (set (targetable-players state 2)) target-player-name)]}
-  (let [target-player-card (player-card state target-player-name)]
-    (assoc state :state/abbot-reveal {:abbot-reveal/abbot-player-name player-name
-                                      :abbot-reveal/card target-player-card
-                                      :abbot-reveal/target-player-name target-player-name}))) ;; TODO when player confirms seeing card, remove the reveal from state
+  (let [target-card (player-card state target-player-name)]
+    (-> state
+        (assoc :state/abbot-reveal {:abbot-reveal/abbot-player-name player-name
+                                    :abbot-reveal/card target-card
+                                    :abbot-reveal/target-player-name target-player-name})
+        (log {:message/content (str player-name " saw " target-player-name "'s card: " (:card/name target-card))
+              :message/visibility #{player-name}}))))
 
 (defn play-rogue [state player-name {:keys [target-player-name]}]
   {:pre [(contains? (set (targetable-players state 3)) target-player-name)]}
-  (let [target-player-card (player-card state target-player-name)
-        player-card (player-card state player-name)]
-    (if (< (:card/value target-player-card) (:card/value player-card))
-      (eliminate-player state target-player-name)
-      (eliminate-player state player-name))))
+  (let [target-card (player-card state target-player-name)
+        current-card (player-card state player-name)
+        eliminated (if (< (:card/value target-card) (:card/value current-card))
+                     target-player-name
+                     player-name)]
+    (-> state
+        (eliminate-player eliminated)
+        (log {:message/content (str eliminated " was eliminated")
+              :message/visibility (set (:state/players state))}))))
 
 (defn play-knight [state player-name _extra-args]
-  (update state :state/protected-players conj player-name))
+  (-> state
+      (update :state/protected-players conj player-name)
+      (log {:message/content (str player-name " is now protected")
+            :message/visibility (set (:state/players state))})))
 
 (defn play-wizard [state _player-name {:keys [target-player-name]}]
   {:pre [(contains? (set (targetable-players state 5)) target-player-name)]}
-  (let [target-player-card (player-card state target-player-name)]
+  (let [target-card (player-card state target-player-name)]
     (-> state
         (remove-single-card-from-hand target-player-name)
-        (add-card-to-discard-pile target-player-card)
-        (draw-card target-player-name))))
+        (add-card-to-discard-pile target-card)
+        (draw-card target-player-name)
+        (log {:message/content (str target-player-name " discarded " (:card/name target-card) " and drew a new card")
+              :message/visibility (set (:state/players state))}))))
 
 (defn play-fool [state player-name {:keys [target-player-name]}]
   {:pre [(contains? (set (targetable-players state 6)) target-player-name)]}
@@ -247,7 +265,10 @@
   state)
 
 (defn play-king [state player-name _extra-args]
-  (eliminate-player state player-name))
+  (-> state
+      (eliminate-player player-name)
+      (log {:message/content (str player-name " was eliminated")
+            :message/visibility (set (:state/players state))})))
 
 (defn play-princeling [state _player-name _extra-args]
   state)
@@ -257,24 +278,27 @@
 
 (defn play-card [state player-name card extra-args]
   {:pre [(contains? (set (player-hand state player-name)) card)]}
-  (let [state (remove-card-from-hand-upon-play state player-name card)
-        state (add-card-to-discard-pile state card)
+  (let [all-players (set (:state/players state))
+        state (remove-card-from-hand-upon-play state player-name card)
+        state (add-card-to-discard-pile state card) 
+        state (log state {:message/content (str player-name " played " (:card/value card) " - " (:card/name card))
+                          :message/visibility all-players})
         state (update state :state/protected-players disj player-name)
-        state (if (and (:card/targeting-rule card) (protected-player? state (:target-player-name extra-args)))
-                state
-                (-> (case (:card/value card)
-                      1 (play-minion state player-name extra-args)
-                      2 (play-abbot state player-name extra-args)
-                      3 (play-rogue state player-name extra-args)
-                      4 (play-knight state player-name extra-args)
-                      5 (play-wizard state player-name extra-args)
-                      6 (play-fool state player-name extra-args)
-                      7 (play-queen state player-name extra-args)
-                      9 (play-king state player-name extra-args)
-                      0 (play-princeling state player-name extra-args))))
-        log-entry {:message/content (str player-name " played " (:card/value card) " - " (:card/name card))
-                   :message/visibility (set (:state/players state))}
-        state (update state :state/log conj log-entry)]
+        target-protected? (and (:card/targeting-rule card)
+                               (protected-player? state (:target-player-name extra-args)))
+        state (if target-protected?
+                (log state {:message/content (str (:target-player-name extra-args) " was protected — nothing happened")
+                            :message/visibility all-players})
+                (case (:card/value card)
+                  1 (play-minion state player-name extra-args)
+                  2 (play-abbot state player-name extra-args)
+                  3 (play-rogue state player-name extra-args)
+                  4 (play-knight state player-name extra-args)
+                  5 (play-wizard state player-name extra-args)
+                  6 (play-fool state player-name extra-args)
+                  7 (play-queen state player-name extra-args)
+                  9 (play-king state player-name extra-args)
+                  0 (play-princeling state player-name extra-args)))]
     (if (round-over? state)
       (let [winners (round-winners state)
             state (transition-to-next-round state winners)]

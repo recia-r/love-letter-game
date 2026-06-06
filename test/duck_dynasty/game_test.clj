@@ -216,7 +216,7 @@
      (get-in [:state/log 0 :message/visibility]))
  := #{"Alice" "Bob"}
 
- "Log persists across round transition"
+ "Log persists across round transition (base + outcome entries)"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck
                                    1 ;; alice deal
                                    5 ;; bob deal
@@ -228,7 +228,7 @@
                                                   :guessed-card-value 5})
      (get :state/log)
      count)
- := 1
+ := 2
 
  "Playing full round of game"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck
