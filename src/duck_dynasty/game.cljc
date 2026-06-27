@@ -1,4 +1,6 @@
-(ns duck-dynasty.game)
+(ns duck-dynasty.game 
+  (:require
+    [clojure.string :as str]))
 
 ;; DATA
 (def cards
@@ -139,14 +141,16 @@
 (defn set-up-round [state deck]
   (let [players (:state/players state)
         initial-setup (deal-initial-cards players deck)]
-    (assoc state
-           :state/current-player (first players)
-           :state/deck (:deck initial-setup)
-           :state/hidden-card (:hidden-card initial-setup)
-           :state/player-hands (:player-hands initial-setup)
-           :state/protected-players #{}
-           :state/discard-pile []
-           :state/abbot-reveal nil)))
+    (->  state
+         (assoc :state/current-player (first players)
+                :state/deck (:deck initial-setup)
+                :state/hidden-card (:hidden-card initial-setup)
+                :state/player-hands (:player-hands initial-setup)
+                :state/protected-players #{}
+                :state/discard-pile []
+                :state/abbot-reveal nil)
+         (log {:message/content (str "Round " (:state/round state) " started.")
+               :message/visibility (set (:state/players state))}))))
 
 (defn new-game [player-names deck]
   (-> {:state/players (vec player-names)
@@ -162,7 +166,9 @@
   [state round-winner-names]
   (-> (reduce (fn [s winner] (update-in s [:state/round-win-counts winner] (fnil inc 0)))
               state
-              round-winner-names)
+              round-winner-names) 
+      (log {:message/content (str "Round " (:state/round state) " ended. Winner/s: " (str/join ", " round-winner-names))
+            :message/visibility (set (:state/players state))})
       (update :state/round inc)
       (set-up-round (create-deck))))
 

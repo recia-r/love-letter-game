@@ -70,3 +70,6 @@ profiles.clj.bak
 
 # Session data
 data/
+
+.clj-kondo/
+.lsp/
