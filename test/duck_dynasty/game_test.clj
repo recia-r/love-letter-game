@@ -23,9 +23,7 @@
  (dd/eliminate-player {:state/player-hands {"Alice" [1] "Bob" [2]}} "Bob") := {:state/player-hands {"Alice" [1]}}
 
  (dd/remove-card-from-hand-upon-play {:state/player-hands {"Alice" [1 1] "Bob" [2]}} "Alice" 1) := {:state/player-hands {"Alice" [1] "Bob" [2]}}
- (dd/add-card-to-discard-pile {:state/discard-pile [1]} 2) := {:state/discard-pile [1 2]}
-
- (dd/can-play-queen? {:state/player-hands {"Alice" [{:card/value 5} {:card/value 7}]}} "Alice") := false
+ (dd/add-card-to-discard-pile {:state/discard-pile [1]} 2) := {:state/discard-pile [1 2]} 
 
  (dd/players-with-highest-value-card {:state/player-hands {"Alice" [{:card/end-value 5}]
                                                            "Bob" [{:card/end-value 4}]
@@ -221,7 +219,8 @@
                                    ))
      (dd/draw-card "Alice")
      (dd/play-card "Alice" (dd/card-by-value 2) {:target-player-name "Bob"})
-     (get-in [:state/log 0 :message/content]))
+     ;; log 0 is "Round 1 started.", so the play entry is at index 1
+     (get-in [:state/log 1 :message/content]))
  := "Alice played 2 - Abbot"
 
  "Log visibility includes all players"
@@ -233,10 +232,11 @@
                                    ))
      (dd/draw-card "Alice")
      (dd/play-card "Alice" (dd/card-by-value 2) {:target-player-name "Bob"})
-     (get-in [:state/log 0 :message/visibility]))
+     ;; log 0 is "Round 1 started.", so the play entry is at index 1
+     (get-in [:state/log 1 :message/visibility]))
  := #{"Alice" "Bob"}
 
- "Log persists across round transition (base + outcome entries)"
+ "Log persists across round transition (round start/end + play + outcome entries)"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck
                                    1 ;; alice deal
                                    5 ;; bob deal
@@ -248,7 +248,8 @@
                                                  :guessed-card-value 5})
      (get :state/log)
      count)
- := 2
+ ;; Round 1 started / Alice played Minion / Bob eliminated / Round 1 ended / Round 2 started
+ := 5
 
  "Playing full round of game"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck

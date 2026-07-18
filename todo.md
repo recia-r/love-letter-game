@@ -3,6 +3,7 @@ IN PROGRESS
 
 NEXT
 - recia had 2 wizards, played 1 on target self, then only one wizard was discarded, ended up with 2 cards in hand (1 wizard and 1 new draw)
+- fix failing tests
 - fix shadowing of state in log
 - improve ui (less scrolling etc)
 - add to log on round start and end
