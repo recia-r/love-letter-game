@@ -91,9 +91,8 @@
 (defn player-hand [state player-name]
   (get-in state [:state/player-hands player-name]))
 
-(defn can-play-queen? [state player-name]
-  (let [other-card (first (remove #(= 7 (:card/value %)) (player-hand state player-name)))]
-    (contains? #{1 2 3 4 9 0} (:card/value other-card))))
+(defn hand-contains-queen? [state player-name]
+  (contains? (set (map :card/value (player-hand state player-name))) 7)) 
 
 (defn player-card
   "Players other than the current player only ever have one card in their hand"
@@ -252,8 +251,9 @@
       (log {:message/content (str player-name " is now protected")
             :message/visibility (set (:state/players state))})))
 
-(defn play-wizard [state _player-name {:keys [target-player-name]}]
-  {:pre [(contains? (set (targetable-players state 5)) target-player-name)]}
+(defn play-wizard [state player-name {:keys [target-player-name]}]
+  {:pre [(contains? (set (targetable-players state 5)) target-player-name)
+         (not (hand-contains-queen? state player-name))]}
   (let [target-card (player-card state target-player-name)]
     (-> state
         (remove-single-card-from-hand target-player-name)
@@ -263,11 +263,11 @@
               :message/visibility (set (:state/players state))}))))
 
 (defn play-fool [state player-name {:keys [target-player-name]}]
-  {:pre [(contains? (set (targetable-players state 6)) target-player-name)]}
+  {:pre [(contains? (set (targetable-players state 6)) target-player-name)
+         (not (hand-contains-queen? state player-name))]}
   (swap-cards-in-hands state player-name target-player-name))
 
-(defn play-queen [state player-name _extra-args]
-  {:pre [(can-play-queen? state player-name)]}
+(defn play-queen [state _player-name _extra-args] 
   state)
 
 (defn play-king [state player-name _extra-args]
