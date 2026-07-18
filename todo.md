@@ -2,7 +2,6 @@ IN PROGRESS
 
 
 NEXT
-- bug on rogue with tie
 - recia had 2 wizards, played 1 on target self, then only one wizard was discarded, ended up with 2 cards in hand (1 wizard and 1 new draw)
 - fix shadowing of state in log
 - improve ui (less scrolling etc)

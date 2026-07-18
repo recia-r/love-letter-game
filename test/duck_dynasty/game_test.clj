@@ -148,6 +148,19 @@
      (dd/play-card "Alice" (dd/card-by-value 5) {:target-player-name "Bob"})
      (dd/player-hand "Bob"))
  := [(dd/card-by-value 1)] ;; bob should have drawn a 1
+
+ "playing rogue on a tie eliminated no player"
+ (-> (dd/new-game ["Alice" "Bob"] (fake-deck
+                                   1 ;; alice deal
+                                   1 ;; bob deal
+                                   1 ;; hidden
+                                   3 ;; alice draw
+                                   4 ;; bob draw
+                                   ))
+     (dd/draw-card "Alice")
+     (dd/play-card "Alice" (dd/card-by-value 3) {:target-player-name "Bob"})
+     :state/round)
+ := 1
  
  "playing fool swaps hands with target player"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck

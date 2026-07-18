@@ -237,13 +237,17 @@
   {:pre [(contains? (set (targetable-players state 3)) target-player-name)]}
   (let [target-card (player-card state target-player-name)
         current-card (player-card state player-name)
-        eliminated (if (< (:card/value target-card) (:card/value current-card))
-                     target-player-name
-                     player-name)]
-    (-> state
-        (eliminate-player eliminated)
-        (log {:message/content (str eliminated " was eliminated")
-              :message/visibility (set (:state/players state))}))))
+        eliminated (cond 
+                     (< (:card/value target-card) (:card/value current-card)) target-player-name
+                     (> (:card/value target-card) (:card/value current-card)) player-name)]
+    (if (= (:card/value target-card) (:card/value current-card))
+      (-> state 
+          (log {:message/content "no player was eliminated"
+                :message/visibility (set (:state/players state))}))
+      (-> state
+          (eliminate-player eliminated)
+          (log {:message/content (str eliminated " was eliminated")
+                :message/visibility (set (:state/players state))})))))
 
 (defn play-knight [state player-name _extra-args]
   (-> state
