@@ -147,6 +147,46 @@
      (dd/player-hand "Bob"))
  := [(dd/card-by-value 1)] ;; bob should have drawn a 1
 
+ "playing wizard bug"
+ (-> (dd/new-game ["Alice" "Bob"] (fake-deck
+                                   5 ;; alice deal
+                                   2 ;; bob deal
+                                   1 ;; hidden
+                                   2 ;; alice draw 
+                                   1 ;; alice swap
+                                   3 ;; bob draw
+                                   ))
+     (dd/draw-card "Alice") ;; [2 5]
+     (dd/play-card "Alice" (dd/card-by-value 5) {:target-player-name "Alice"}) ;; (play-wizard 5 "Alice")
+     (dd/player-hand "Alice"))
+ := [(dd/card-by-value 1)] 
+ 
+ "playing wizard eliminates target player when their card is king"
+(-> (dd/new-game ["Alice" "Bob" "Charlie"] (fake-deck
+                                            5 ;; alice deal
+                                            9 ;; bob deal
+                                            5 ;; charlie deal
+                                            1 ;; hidden
+                                            5 ;; alice draw 
+                                            ))
+    (dd/draw-card "Alice")
+    (dd/play-card "Alice" (dd/card-by-value 5) {:target-player-name "Bob"})
+    (dd/eliminated-player? "Bob"))
+:= true
+ 
+  "playing wizard eliminates self when their card is king"
+ (-> (dd/new-game ["Alice" "Bob" "Charlie"] (fake-deck
+                                             9 ;; alice deal
+                                             4 ;; bob deal
+                                             5 ;; charlie deal
+                                             1 ;; hidden
+                                             5 ;; alice draw 
+                                             ))
+     (dd/draw-card "Alice")
+     (dd/play-card "Alice" (dd/card-by-value 5) {:target-player-name "Alice"})
+     (dd/eliminated-player? "Alice"))
+ := true
+
  "playing rogue on a tie eliminated no player"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck
                                    1 ;; alice deal

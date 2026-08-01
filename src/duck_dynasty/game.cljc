@@ -259,12 +259,18 @@
   {:pre [(contains? (set (targetable-players state 5)) target-player-name)
          (not (hand-contains-queen? state player-name))]}
   (let [target-card (player-card state target-player-name)]
-    (-> state
-        (remove-single-card-from-hand target-player-name)
-        (add-card-to-discard-pile target-card)
-        (draw-card target-player-name)
-        (log {:message/content (str target-player-name " discarded " (:card/name target-card) " and drew a new card")
-              :message/visibility (set (:state/players state))}))))
+    (if (= (:card/value target-card) 9)
+      (-> state
+          (eliminate-player target-player-name)
+          (add-card-to-discard-pile target-card) 
+          (log {:message/content (str target-player-name " discarded " (:card/name target-card) " and was eliminated")
+                :message/visibility (set (:state/players state))}))
+      (-> state
+          (remove-single-card-from-hand target-player-name)
+          (add-card-to-discard-pile target-card)
+          (draw-card target-player-name)
+          (log {:message/content (str target-player-name " discarded " (:card/name target-card) " and drew a new card")
+                :message/visibility (set (:state/players state))})))))
 
 (defn play-fool [state player-name {:keys [target-player-name]}]
   {:pre [(contains? (set (targetable-players state 6)) target-player-name)
