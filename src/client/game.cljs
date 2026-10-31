@@ -393,6 +393,14 @@
                 :margin "0 auto"
                 :padding "10px 20px"
                 :font-family "Arial, sans-serif"}}
+       [:button {:on-click #(state/navigate-to! [:page/home {}])
+                 :style {:margin-bottom "10px"
+                         :padding "6px 12px"
+                         :background-color "#fff"
+                         :border "1px solid #ccc"
+                         :border-radius "4px"
+                         :cursor "pointer"}}
+        "← Home"]
        (when my-abbot-reveal
          [abbot-reveal-modal my-abbot-reveal dismiss-abbot-reveal!])
        (if (and (not @round-started) (empty? (:state/discard-pile state)) (not (dd/game-over? state)))
