@@ -17,9 +17,35 @@
       (.then (fn [_response]
                (reset! state/player-name user-name)))))
 
+(def showcase-card-values [1 5 0 7 9])
+
+(defn card-fan []
+  (let [n (count showcase-card-values)
+        middle (quot n 2)]
+    [:div {:style {:display "flex"
+                   :justify-content "center"
+                   :margin "30px 0 70px 0"}}
+     (for [[i value] (map-indexed vector showcase-card-values)
+           :let [offset (- i middle)]]
+       ^{:key value}
+       [:img {:src (str "/card?value=" value)
+              :alt (str "Card " value)
+              :style {:width "130px"
+                      :margin "0 -15px"
+                      :border-radius "6px"
+                      :box-shadow "0 4px 12px rgba(0,0,0,0.25)"
+                      :transform (str "rotate(" (* offset 8) "deg)"
+                                      " translateY(" (* (js/Math.abs offset) 12) "px)")}}])]))
+
 (defn set-name-component []
   (r/with-let [username-input (r/atom "")]
-    [:div {:style {:margin-bottom "15px"}}
+    [:div {:style {:margin-bottom "15px"
+                   :padding-top "30px"
+                   :text-align "center"}}
+     [:h1 {:style {:font-size "3em" :margin "0 0 10px 0"}} "Duck Dynasty"]
+     [:p {:style {:color "#666" :margin "0"}}
+      "Outwit your rivals and win the throne. First to 3 rounds wins."]
+     [card-fan]
      [:div {:style {:display "flex"
                     :align-items "center"
                     :justify-content "center"
