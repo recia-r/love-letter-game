@@ -15,7 +15,7 @@
             :display "flex"
             :flex-direction "column"
             :align-items "center"
-            :width "200px"}}
+            :width "140px"}}
    [:img {:src (str "/card?value=" (:card/value card))
           :alt (or (:card/name card) "Card")
           :style {:width "100%"
@@ -35,7 +35,7 @@
                              :src "/card?value=back"
                              :alt "Draw Card"
                              :on-click #(draw-card!)
-                             :style {:width "200px"
+                             :style {:width "160px"
                                      :height "auto"
                                      :cursor "pointer"
                                      :border-radius "4px"
@@ -112,19 +112,21 @@
     (when (not (dd/game-over? state))
       [:div.current-player
        {:style {:background-color "#e3f2fd"
-                :padding "20px"
+                :padding "12px"
                 :border-radius "8px"
-                :margin "20px 0"}}
-       [:h2 {:style {:margin-top "0"}}
-        (str "Currently " current-player "'s turn")]
+                :margin "10px 0"}}
        [player-hand-component state fns @state/player-name]
        (when (and is-current-player? (= (count hand) 2))
          [:div.playable-cards
-          {:style {:margin-top "20px"}}
+          {:style {:display "flex" :gap "10px"}}
           (for [card hand]
             ^{:key (str "play-" (:card/value card))}
-            [:div {:style {:margin-bottom "15px"}}
+            [:div {:style {:flex "1"}}
              [play-card-form state fns current-player card]])])])))
+
+(defn current-turn-component [current-player]
+  [:h2 {:style {:margin "0" :font-size "1.2em"}}
+   (str "Currently " current-player "'s turn")])
 
 (defn round-scores-display [round-winners]
   (let [scores (for [[player wins] round-winners]
@@ -136,9 +138,9 @@
 (defn game-status-component [state _]
   [:div.game-status
    {:style {:background-color "#fff3cd"
-            :padding "15px"
+            :padding "8px 15px"
             :border-radius "8px"
-            :margin "20px 0"}}
+            :margin "0 0 10px 0"}}
    (if (dd/game-over? state)
      (let [winners (dd/game-winners state)
            winner-text (str/join " and " winners)]
@@ -158,13 +160,25 @@
                           :cursor "pointer"
                           :font-size "16px"}}
          "Back to Home"]])
-     [:div
-      [:p (str "Round " (:state/round state) " of " dd/best-of
-               " (First to " dd/wins-needed " wins)")]
-      [:p {:style {:font-weight "bold"}}
+     [:div {:style {:display "flex" :flex-wrap "wrap" :column-gap "20px"}}
+      [:p {:style {:margin "4px 0"}}
+       (str "Round " (:state/round state) " of " dd/best-of)]
+      [:p {:style {:margin "4px 0" :font-weight "bold"}}
        (str "Score: " (round-scores-display (:state/round-win-counts state)))]
-      [:p (str "Active Players: " (str/join ", " (dd/active-players state)))]
-      [:p (str "Remaining Cards: " (count (:state/deck state)))]])])
+      [:p {:style {:margin "4px 0"}}
+       (str "Active Players: " (str/join ", " (dd/active-players state)))]
+      [:p {:style {:margin "4px 0"}}
+       (str "Remaining Cards: " (count (:state/deck state)))]])])
+
+(defn last-played-component [discard-pile]
+  [:div.last-played
+   {:style {:display "flex"
+            :align-items "center"
+            :gap "15px"}}
+   [:h3 {:style {:margin "0" :font-size "1em" :color "#555"}} "Last Played"]
+   (if-let [card (peek discard-pile)]
+     [card-component card]
+     [:p {:style {:color "#999" :font-style "italic" :margin "0"}} "No cards played yet."])])
 
 (defn abbot-reveal-modal [reveal dismiss!]
   [:div {:style {:position "fixed"
@@ -203,17 +217,16 @@
             :border "1px solid #ddd"
             :border-radius "8px"
             :padding "15px"
-            :margin "20px 0"}}
+            :width "280px"
+            :flex-shrink "0"}}
    [:h3 {:style {:margin-top "0" :margin-bottom "10px" :font-size "1em" :color "#555"}} "Game Log"]
    (if (empty? log)
      [:p {:style {:color "#999" :font-style "italic" :margin "0"}} "No actions yet."]
      [:ul {:style {:list-style "none"
                    :margin "0"
                    :padding "0"
-                   :max-height "200px"
-                   :overflow-y "auto"
-                   :display "flex"
-                   :flex-direction "column-reverse"}}
+                   :max-height "calc(100vh - 420px)"
+                   :overflow-y "auto"}}
       (map-indexed
        (fn [i entry]
          ^{:key i}
@@ -299,18 +312,23 @@
         (reset! last-round current-round)
         (reset! round-started false))
       [:div.game-page
-       {:style {:max-width "800px"
+       {:style {:max-width "1200px"
                 :margin "0 auto"
-                :padding "20px"
+                :padding "10px 20px"
                 :font-family "Arial, sans-serif"}}
        (when my-abbot-reveal
          [abbot-reveal-modal my-abbot-reveal dismiss-abbot-reveal!])
        (if (and (not @round-started) (empty? (:state/discard-pile state)) (not (dd/game-over? state)))
          [new-round-screen current-round #(reset! round-started true)]
-         (list
-          ^{:key "status"} [game-status-component state fns]
-          ^{:key "player"} [outer-player-component state fns]
-          ^{:key "log"} [game-log-component (:state/log state)]))])
+         [:div {:style {:display "flex" :gap "20px" :align-items "flex-start"}}
+          [:div {:style {:flex "1" :min-width "0"}}
+           [game-status-component state fns]
+           [outer-player-component state fns]]
+          [:div {:style {:display "flex" :flex-direction "column" :gap "10px"}}
+           (when-not (dd/game-over? state)
+             [current-turn-component (:state/current-player state)])
+           [last-played-component (:state/discard-pile state)]
+           [game-log-component (:state/log state)]]])])
     (finally
       (js/clearInterval interval))))
 
