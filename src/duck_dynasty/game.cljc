@@ -64,6 +64,9 @@
    [:state/player-hands [:map-of PlayerName [:vector {:min 1 :max 2} Card]]]
    [:state/protected-players [:set PlayerName]]
    [:state/discard-pile [:vector Card]]
+   [:state/last-played [:maybe [:map
+                                [:last-played/player-name PlayerName]
+                                [:last-played/card Card]]]]
    [:state/round :int]
    [:state/round-win-counts [:map-of PlayerName :int]]
    [:state/game-winners [:vector PlayerName]]])
@@ -147,6 +150,7 @@
                 :state/player-hands (:player-hands initial-setup)
                 :state/protected-players #{}
                 :state/discard-pile []
+                :state/last-played nil
                 :state/abbot-reveal nil)
          (log {:message/content (str "Round " (:state/round state) " started.")
                :message/visibility (set (:state/players state))}))))
@@ -172,11 +176,14 @@
       (set-up-round (create-deck))))
 
 (defn advance-player [state]
+  ;; walk all players (not just active ones) so this still works
+  ;; when the current player eliminated themselves this turn
   (->> state
-       active-players
+       :state/players
        (cycle)
        (drop-while #(not= % (:state/current-player state)))
        (drop 1)
+       (filter (:state/player-hands state))
        (first)
        (assoc state :state/current-player)))
 
@@ -293,10 +300,13 @@
   (assoc state :state/abbot-reveal nil))
 
 (defn play-card [state player-name card extra-args]
-  {:pre [(contains? (set (player-hand state player-name)) card)]}
+  {:pre [(contains? (set (player-hand state player-name)) card)]
+   :malli/schema [:=> [:cat State PlayerName Card :map] State]} 
   (let [all-players (set (:state/players state))
         state (remove-card-from-hand-upon-play state player-name card)
         state (add-card-to-discard-pile state card) 
+        state (assoc state :state/last-played {:last-played/player-name player-name
+                                               :last-played/card card})
         state (log state {:message/content (str player-name " played " (:card/value card) " - " (:card/name card))
                           :message/visibility all-players})
         state (update state :state/protected-players disj player-name)

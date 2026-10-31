@@ -18,10 +18,10 @@
             :width "140px"}}
    [:img {:src (str "/card?value=" (:card/value card))
           :alt (or (:card/name card) "Card")
-          :style {:width "100%"
+          :style {:display "block"
+                  :width "100%"
                   :height "auto"
-                  :border-radius "4px"
-                  :margin-bottom "10px"}}]])
+                  :border-radius "4px"}}]])
 
 (defn player-hand-component [state {:keys [draw-card!]} player-name]
   (let [hand (dd/player-hand state player-name)
@@ -170,14 +170,15 @@
       [:p {:style {:margin "4px 0"}}
        (str "Remaining Cards: " (count (:state/deck state)))]])])
 
-(defn last-played-component [discard-pile]
+(defn last-played-component [last-played]
   [:div.last-played
    {:style {:display "flex"
             :align-items "center"
             :gap "15px"}}
-   [:h3 {:style {:margin "0" :font-size "1em" :color "#555"}} "Last Played"]
-   (if-let [card (peek discard-pile)]
-     [card-component card]
+   (if-let [{:last-played/keys [player-name card]} last-played]
+     [:div
+      [:p {:style {:margin "0 0 5px 0"}} (str player-name " played:")]
+      [card-component card]]
      [:p {:style {:color "#999" :font-style "italic" :margin "0"}} "No cards played yet."])])
 
 (defn abbot-reveal-modal [reveal dismiss!]
@@ -327,7 +328,7 @@
           [:div {:style {:display "flex" :flex-direction "column" :gap "10px"}}
            (when-not (dd/game-over? state)
              [current-turn-component (:state/current-player state)])
-           [last-played-component (:state/discard-pile state)]
+           [last-played-component (:state/last-played state)]
            [game-log-component (:state/log state)]]])])
     (finally
       (js/clearInterval interval))))
