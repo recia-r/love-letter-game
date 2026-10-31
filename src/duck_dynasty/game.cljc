@@ -265,15 +265,24 @@
         current-card (player-card state player-name)
         eliminated (cond 
                      (< (:card/value target-card) (:card/value current-card)) target-player-name
-                     (> (:card/value target-card) (:card/value current-card)) player-name)]
-    (if (= (:card/value target-card) (:card/value current-card))
-      (-> state 
-          (log {:message/content "no player was eliminated"
-                :message/visibility (set (:state/players state))}))
-      (-> state
-          (eliminate-player eliminated)
-          (log {:message/content (str eliminated " was eliminated")
-                :message/visibility (set (:state/players state))})))))
+                     (> (:card/value target-card) (:card/value current-card)) player-name)
+        outcome (if eliminated
+                  (str eliminated " was eliminated")
+                  "No player was eliminated")
+        state (cond-> state eliminated (eliminate-player eliminated))
+        ;; only the two players see the compared cards,
+        ;; unless this play ended the round
+        reveal-to (if (round-over? state)
+                    (set (:state/players state))
+                    #{player-name target-player-name})
+        others (into #{} (remove reveal-to) (:state/players state))]
+    (-> state
+        (log {:message/content (str player-name "'s " (:card/value current-card) " - " (:card/name current-card)
+                                    " vs " target-player-name "'s " (:card/value target-card) " - " (:card/name target-card)
+                                    ". " outcome)
+              :message/visibility reveal-to})
+        (cond-> (seq others) (log {:message/content outcome
+                                   :message/visibility others})))))
 
 (defn play-knight [state player-name _extra-args]
   (-> state
