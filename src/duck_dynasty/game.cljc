@@ -67,6 +67,12 @@
    [:state/last-played [:maybe [:map
                                 [:last-played/player-name PlayerName]
                                 [:last-played/card Card]]]]
+   [:state/last-round-result {:optional true}
+    [:map
+     [:round-result/round :int]
+     [:round-result/reason [:enum :last-player-standing :deck-empty]]
+     [:round-result/winners [:sequential PlayerName]]
+     [:round-result/final-hands [:map-of PlayerName [:vector Card]]]]]
    [:state/round :int]
    [:state/round-win-counts [:map-of PlayerName :int]]
    [:state/game-winners [:vector PlayerName]]])
@@ -163,6 +169,16 @@
        :state/log []}
       (set-up-round deck)))
 
+(defn round-result
+  "Summary of a finished round: who won, why it ended, and the hands left at the end."
+  [state round-winner-names]
+  {:round-result/round (:state/round state)
+   :round-result/reason (if (= (count (active-players state)) 1)
+                          :last-player-standing
+                          :deck-empty)
+   :round-result/winners round-winner-names
+   :round-result/final-hands (:state/player-hands state)})
+
 (defn transition-to-next-round
   "Start the next round after recording the round winners.
    Resets deck, hands, protected players while keeping round-winners and players."
@@ -172,6 +188,7 @@
               round-winner-names) 
       (log {:message/content (str "Round " (:state/round state) " ended. Winner/s: " (str/join ", " round-winner-names))
             :message/visibility (set (:state/players state))})
+      (assoc :state/last-round-result (round-result state round-winner-names))
       (update :state/round inc)
       (set-up-round (create-deck))))
 

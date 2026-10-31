@@ -287,13 +287,40 @@
           (:message/content entry)])
        (reverse log))])])
 
-(defn new-round-screen [round on-start]
+(defn round-ending-entries
+  "The last 2 log entries of the previous round. The log ends with
+   \"Round N ended\" and \"Round N+1 started\", so skip those."
+  [log]
+  (->> log (drop-last 2) (take-last 2)))
+
+(defn round-result-component [{:round-result/keys [round reason winners final-hands]} log]
+  [:div {:style {:text-align "center"
+                 :margin-bottom "30px"}}
+   [:h2 {:style {:margin "0 0 10px 0"}}
+    (str "Round " round " won by " (str/join " and " winners))]
+   (when (= reason :deck-empty)
+     [:p {:style {:margin "0 0 10px 0" :color "#555"}}
+      "The deck ran out, so the highest card wins."])
+   (for [[i entry] (map-indexed vector (round-ending-entries log))]
+     ^{:key i}
+     [:p {:style {:margin "0 0 5px 0" :color "#333"}} (:message/content entry)])
+   (when (= reason :deck-empty)
+     [:div {:style {:display "flex" :gap "10px" :justify-content "center"}}
+      (for [[player-name [card]] final-hands]
+        ^{:key player-name}
+        [:div
+         [:p {:style {:margin "0 0 5px 0"}} player-name]
+         [card-component card]])])])
+
+(defn new-round-screen [round last-round-result log on-start]
   [:div {:style {:display "flex"
                  :flex-direction "column"
                  :align-items "center"
                  :justify-content "center"
                  :min-height "300px"
                  :padding "40px"}}
+   (when last-round-result
+     [round-result-component last-round-result log])
    [:h1 {:style {:font-size "2.5em"
                  :margin-bottom "30px"
                  :color "#333"}}
@@ -369,7 +396,7 @@
        (when my-abbot-reveal
          [abbot-reveal-modal my-abbot-reveal dismiss-abbot-reveal!])
        (if (and (not @round-started) (empty? (:state/discard-pile state)) (not (dd/game-over? state)))
-         [new-round-screen current-round #(reset! round-started true)]
+         [new-round-screen current-round (:state/last-round-result state) (:state/log state) #(reset! round-started true)]
          [:div {:style {:display "flex" :gap "20px" :align-items "flex-start"}}
           [:div {:style {:flex "1" :min-width "0"}}
            [game-status-component state fns]
