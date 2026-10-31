@@ -6,30 +6,34 @@
    [cljs.reader :as reader]
    [client.state :as state]))
 
-(defn card-component [card]
-  [:div.card
-   {:style {:border "1px solid #ccc"
-            :padding "10px"
-            :border-radius "4px"
-            :background-color "#f9f9f9"
-            :display "flex"
-            :flex-direction "column"
-            :align-items "center"
-            :width "140px"}}
-   [:img {:src (str "/card?value=" (:card/value card))
-          :alt (or (:card/name card) "Card")
-          :style {:display "block"
-                  :width "100%"
-                  :height "auto"
-                  :border-radius "4px"}}]])
+(defn card-component
+  ([card] (card-component card nil))
+  ([card on-click]
+   [:div.card
+    {:on-click on-click
+     :style {:border "1px solid #ccc"
+             :padding "10px"
+             :border-radius "4px"
+             :background-color "#f9f9f9"
+             :display "flex"
+             :flex-direction "column"
+             :align-items "center"
+             :width "140px"
+             :cursor (if on-click "pointer" "default")}}
+    [:img {:src (str "/card?value=" (:card/value card))
+           :alt (or (:card/name card) "Card")
+           :style {:display "block"
+                   :width "100%"
+                   :height "auto"
+                   :border-radius "4px"}}]]))
 
-(defn player-hand-component [state {:keys [draw-card!]} player-name]
+(defn player-hand-component [state {:keys [draw-card!]} player-name on-card-click]
   (let [hand (dd/player-hand state player-name)
         is-current-player? (= player-name (:state/current-player state))
         has-one-card? (= (count hand) 1)
         cards (for [card hand]
                 ^{:key (str (:card/value card) "-" (:card/name card))}
-                [card-component card])
+                [card-component card (when on-card-click #(on-card-click card))])
         draw-button (when (and is-current-player? has-one-card?)
                       [:img {:key "draw-card"
                              :src "/card?value=back"
@@ -48,81 +52,126 @@
               :max-width "none"}}
      (if (empty? hand)
        [:div "No cards (eliminated)"]
-       [:div.cards
-        {:style {:display "flex"
-                 :flex-direction "row"
-                 :flex-wrap "nowrap"
-                 :align-items "center"
-                 :gap "10px"}}
-        (doall cards)
-        draw-button])]))
+       [:div
+        [:div.cards
+         {:style {:display "flex"
+                  :flex-direction "row"
+                  :flex-wrap "nowrap"
+                  :justify-content "center"
+                  :align-items "center"
+                  :gap "10px"
+                  :opacity (when-not is-current-player? "0.5")
+                  :filter (when-not is-current-player? "grayscale(100%)")}}
+         (doall cards)
+         draw-button]
+        (when-not is-current-player?
+          [:p {:style {:text-align "center"
+                       :color "#666"
+                       :font-style "italic"
+                       :margin "8px 0 0 0"}}
+           (str "Waiting for " (:state/current-player state) "...")])])]))
 
 ;; TODO from Jeff - make smaller components e.g. for target and guess
 ;; do not pass state around - below should not get state as an argument, should get fns that alter state (state defined in top level component)
 ;; within each room, i'll have a game state. all components shuld get an immutable version of state (and fns should alter state)
 
-(defn play-card-form [state {:keys [play-card!]} _player-name card]
+(defn card-needs-target? [card]
+  (some? (:card/targeting-rule card)))
+
+(defn card-needs-guess? [card]
+  (= (:card/value card) 1)) ; Minion needs a guess
+
+(defn play-card-form [state {:keys [play-card! cancel!]} _player-name card]
   (let [target-players (dd/targetable-players state (:card/value card))
-        needs-target? (not (nil? (:card/targeting-rule card)))
-        needs-guess? (= (:card/value card) 1) ; Minion needs a guess
+        needs-target? (card-needs-target? card)
+        needs-guess? (card-needs-guess? card)
         target (r/atom (first target-players))
         guessed-value (r/atom 2)]
     (fn []
       [:div.play-card-form
-       {:style {:border "2px solid #4CAF50"
-                :padding "15px"
-                :margin "10px 0"
-                :border-radius "4px"
-                :background-color "#f0f8f0"}}
-       [:div {:style {:font-weight "bold" :margin-bottom "10px"}}
-        (str "Play " (:card/name card))]
-       (when needs-target?
-         [:div {:style {:margin-bottom "10px"}}
-          [:label {:style {:display "block" :margin-bottom "5px"}} "Target Player:"]
-          [:select {:value @target
-                    :on-change #(reset! target (-> % .-target .-value))}
-           (for [tp target-players]
-             ^{:key tp}
-             [:option {:value tp} tp])]])
-       (when needs-guess?
-         [:div {:style {:margin-bottom "10px"}}
-          [:label {:style {:display "block" :margin-bottom "5px"}} "Guess Card Value:"]
-          [:select {:value @guessed-value
-                    :on-change #(reset! guessed-value (js/parseInt (-> % .-target .-value)))}
-           (for [val [2 3 4 5 6 7 9 0]]
-             ^{:key val}
-             [:option {:value val} (str val " - " (:card/name (dd/card-by-value val)))])]])
-       [:button {:on-click (fn []
-                             (play-card!
-                              (:card/value card)
-                              (when needs-target? @target)
-                              (when needs-guess? @guessed-value)))
-                 :style {:padding "8px 16px"
-                         :background-color "#4CAF50"
-                         :color "white"
-                         :border "none"
-                         :border-radius "4px"
-                         :cursor "pointer"}}
-        "Play Card"]])))
+       {:on-click #(when (= (.-target %) (.-currentTarget %)) (cancel!))
+        :style {:position "fixed"
+                :top "0" :left "0"
+                :width "100%" :height "100%"
+                :background-color "rgba(0,0,0,0.6)"
+                :display "flex"
+                :align-items "center"
+                :justify-content "center"
+                :z-index "1000"}}
+       [:div {:style {:background-color "#fff"
+                      :border-radius "12px"
+                      :padding "30px"
+                      :min-width "260px"
+                      :box-shadow "0 8px 32px rgba(0,0,0,0.3)"}}
+        [:div {:style {:font-weight "bold" :margin-bottom "10px"}}
+         (str "Play " (:card/name card))]
+        (when needs-target?
+          [:div {:style {:margin-bottom "10px"}}
+           [:label {:style {:display "block" :margin-bottom "5px"}} "Target Player:"]
+           [:select {:value @target
+                     :on-change #(reset! target (-> % .-target .-value))}
+            (for [tp target-players]
+              ^{:key tp}
+              [:option {:value tp} tp])]])
+        (when needs-guess?
+          [:div {:style {:margin-bottom "10px"}}
+           [:label {:style {:display "block" :margin-bottom "5px"}} "Guess Card Value:"]
+           [:select {:value @guessed-value
+                     :on-change #(reset! guessed-value (js/parseInt (-> % .-target .-value)))}
+            (for [val [2 3 4 5 6 7 9 0]]
+              ^{:key val}
+              [:option {:value val} (str val " - " (:card/name (dd/card-by-value val)))])]])
+        [:button {:on-click (fn []
+                              (play-card!
+                               (:card/value card)
+                               (when needs-target? @target)
+                               (when needs-guess? @guessed-value)))
+                  :style {:padding "8px 16px"
+                          :background-color "#4CAF50"
+                          :color "white"
+                          :border "none"
+                          :border-radius "4px"
+                          :cursor "pointer"}}
+         "Play Card"]
+        [:button {:on-click cancel!
+                  :style {:margin-left "10px"
+                          :padding "8px 16px"
+                          :background-color "#ccc"
+                          :border "none"
+                          :border-radius "4px"
+                          :cursor "pointer"}}
+         "Cancel"]]])))
 
-(defn outer-player-component [state fns]
-  (let [current-player (:state/current-player state)
-        hand (dd/player-hand state current-player)
-        is-current-player? (= @state/player-name current-player)]
-    (when (not (dd/game-over? state))
-      [:div.current-player
-       {:style {:background-color "#e3f2fd"
-                :padding "12px"
-                :border-radius "8px"
-                :margin "10px 0"}}
-       [player-hand-component state fns @state/player-name]
-       (when (and is-current-player? (= (count hand) 2))
-         [:div.playable-cards
-          {:style {:display "flex" :gap "10px"}}
-          (for [card hand]
-            ^{:key (str "play-" (:card/value card))}
-            [:div {:style {:flex "1"}}
-             [play-card-form state fns current-player card]])])])))
+(defn outer-player-component [_state _fns]
+  (let [selected-card (r/atom nil)]
+    (fn [state {:keys [play-card!] :as fns}]
+      (let [current-player (:state/current-player state)
+            hand (dd/player-hand state current-player)
+            is-current-player? (= @state/player-name current-player)
+            can-play? (and is-current-player? (= (count hand) 2))
+            play-card! (fn [& args]
+                         (reset! selected-card nil)
+                         (apply play-card! args))
+            on-card-click (when can-play?
+                            (fn [card]
+                              (if (or (card-needs-target? card) (card-needs-guess? card))
+                                (reset! selected-card card)
+                                (play-card! (:card/value card) nil nil))))]
+        (when (not (dd/game-over? state))
+          [:div.current-player
+           {:style {:background-color "#e3f2fd"
+                    :padding "12px"
+                    :border-radius "8px"
+                    :margin "10px 0"}}
+           [player-hand-component state fns @state/player-name on-card-click]
+           (when (and can-play? (some #{@selected-card} hand))
+             ^{:key (:card/value @selected-card)}
+             [play-card-form state
+              (assoc fns
+                     :play-card! play-card!
+                     :cancel! #(reset! selected-card nil))
+              current-player
+              @selected-card])])))))
 
 (defn current-turn-component [current-player]
   [:h2 {:style {:margin "0" :font-size "1.2em"}}
