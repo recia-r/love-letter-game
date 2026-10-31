@@ -236,15 +236,17 @@
            :state/deck remaining-deck
            :state/player-hands (assoc (:state/player-hands state) player-name new-hand))))
 
-(defn play-minion [state _player-name {:keys [target-player-name guessed-card-value]}]
+(defn play-minion [state player-name {:keys [target-player-name guessed-card-value]}]
   {:pre [(contains? minion-guessable-card-values guessed-card-value)
          (contains? (set (targetable-players state 1)) target-player-name)]}
-  (let [correct? (= (:card/value (player-card state target-player-name)) guessed-card-value)]
+  (let [correct? (= (:card/value (player-card state target-player-name)) guessed-card-value)
+        guess (str player-name " guessed " target-player-name " has "
+                   guessed-card-value " - " (:card/name (card-by-value guessed-card-value)))]
     (-> state
         (cond-> correct? (eliminate-player target-player-name))
         (log {:message/content (if correct?
-                                 (str target-player-name " was eliminated")
-                                 "Minion guess was wrong")
+                                 (str guess ". Correct! " target-player-name " was eliminated")
+                                 (str guess ". Wrong guess"))
               :message/visibility (set (:state/players state))}))))
 
 (defn play-abbot [state player-name {:keys [target-player-name]}]
