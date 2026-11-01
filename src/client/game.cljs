@@ -8,18 +8,20 @@
 
 (defn card-component
   ([card] (card-component card nil))
-  ([card on-click]
+  ([card on-click] (card-component card on-click nil))
+  ([card on-click style]
    [:div.card
     {:on-click on-click
-     :style {:border "1px solid #ccc"
-             :padding "10px"
-             :border-radius "4px"
-             :background-color "#f9f9f9"
-             :display "flex"
-             :flex-direction "column"
-             :align-items "center"
-             :width "140px"
-             :cursor (if on-click "pointer" "default")}}
+     :style (merge {:border "1px solid #ccc"
+                    :padding "10px"
+                    :border-radius "4px"
+                    :background-color "#f9f9f9"
+                    :display "flex"
+                    :flex-direction "column"
+                    :align-items "center"
+                    :width "140px"
+                    :cursor (if on-click "pointer" "default")}
+                   style)}
     [:img {:src (str "/card?value=" (:card/value card))
            :alt (or (:card/name card) "Card")
            :style {:display "block"
@@ -226,8 +228,10 @@
             :gap "15px"}}
    (if-let [{:last-played/keys [player-name card]} last-played]
      [:div
-      [:p {:style {:margin "0 0 5px 0"}} (str player-name " played:")]
-      [card-component card]]
+      [:p {:style {:margin "0 0 5px 0"}} (str "Last card played (by " player-name ")")]
+      [card-component card nil {:width "90px"
+                                :padding "6px"
+                                :opacity "0.6"}]]
      [:p {:style {:color "#999" :font-style "italic" :margin "0"}} "No cards played yet."])])
 
 (defn abbot-reveal-modal [reveal dismiss!]
