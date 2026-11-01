@@ -10,6 +10,7 @@
         reagent/reagent {:mvn/version "1.2.0"}
         cljs-http/cljs-http {:mvn/version "0.1.46"}
         com.hyperfiddle/rcf {:mvn/version "20220926-202227"}
+        metosin/malli {:mvn/version "0.20.3"}
         duratom/duratom {:mvn/version "0.5.9"}}
  :aliases
- {}}
+ {:test {:extra-paths ["test"]}}}

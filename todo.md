@@ -1,14 +1,19 @@
 IN PROGRESS
 
+- add malli dep
+  - trying to get instrumentation running in simulation_test
+- set up a  test... random deck, random play of cards, schema check after every play (already done), run for 100,000 games (-- catch any that have an error at any point, return initial state, final state)
 
 NEXT
-- recia had 2 wizards, played 1 on target self, then only one wizard was discarded, ended up with 2 cards in hand (1 wizard and 1 new draw) -- cannot replicate on backend
-       - add malli dep
-       - set up a  test... random deck, random play of cards, schema check after every play (already done), run for 100,000 games (-- catch any that have an error at any point, return initial state, final state)
+
 - fix shadowing of state in log ??
 - improve ui (less scrolling etc)
 - add to log on round start and end
-- deploy
+- log detail of minion guess
+- less white space - log to right of play zone
+- more engaging inital page
+- discard pile 
+- when round ended, there was no notification about what happened - do not automatically go to next round
 
 INBOX
 

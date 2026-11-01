@@ -4,6 +4,8 @@
                 [cljs-http "0.1.46"]]
  :dev-http {8085 ["public/"
                   "target/public/"]}
+ ;; npx shadow-cljs watch app
+ ;; npx shadow-cljs release app
  :builds {:app {:target :browser
                 :output-dir "target/public/app"
                 :asset-path "/app"
