@@ -54,8 +54,20 @@
            (:room/state (rooms/get-room state {:room-id room-id}))
            := :post-game
 
-           (let [state (rooms/replay-game state {:room-id room-id})
+           (let [state (rooms/replay-game state {:room-id room-id :game-state ::new-game})
                  players (:room/players (rooms/get-room state {:room-id room-id}))
-                 game-with-players (filter #(and (= (:room/players %) players) (= (:room/state %) :in-game)) (vals state))]
+                 game-with-players (filter #(and (= (:room/players %) players) (= (:room/state %) :in-game)) (vals state))
+                 next-room-id (:room/next-room-id (rooms/get-room state {:room-id room-id}))]
              (count game-with-players)
-             := 1)))))))
+             := 1
+
+             "old room points at the new room, which has the new game"
+             (= next-room-id (:room/id (first game-with-players)))
+             := true
+
+             (:room/game (rooms/get-room state {:room-id next-room-id}))
+             := ::new-game
+
+             "a second replay request joins the same room instead of making another"
+             (rooms/replay-game state {:room-id room-id :game-state ::another-game})
+             := state)))))))

@@ -180,7 +180,8 @@
                :message/visibility (set (:state/players state))}))))
 
 (defn new-game
-  {:malli/schema [:=> [:cat [:sequential PlayerName] [:sequential Card]] State]}
+  ;; rooms keep their players in a set
+  {:malli/schema [:=> [:cat [:or [:sequential PlayerName] [:set PlayerName]] [:sequential Card]] State]}
   [player-names deck]
   (-> {:state/players (vec player-names)
        :state/round 1

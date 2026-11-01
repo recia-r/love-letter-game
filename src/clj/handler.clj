@@ -2,7 +2,7 @@
   (:require
    [duck-dynasty.game :as dd]
    [clj.rooms :as rooms]
-   [ring.util.response :refer [file-response]]
+   [ring.util.response :refer [file-response header]]
    [clojure.edn :as edn]
    [clojure.string :as str]
    [clj.state :as state]))
@@ -13,7 +13,9 @@
   (file-response "public/index.html"))
 
 (defn serve-main-js [_request]
-  (file-response "target/public/app/main.js"))
+  ;; make browsers check for a new build on every load instead of reusing a cached one
+  (-> (file-response "target/public/app/main.js")
+      (header "Cache-Control" "no-cache")))
 
 (defn serve-main-css [_request]
   (file-response "public/main.css"))
@@ -40,7 +42,11 @@
   {:status 200
    :headers {"Content-Type" "application/edn"
              "Access-Control-Allow-Origin" "*"}
-   :body (pr-str (scrub-game-state (:room/game (rooms/get-room @state/rooms {:room-id room-id})) player-name))})
+   :body (let [room (rooms/get-room @state/rooms {:room-id room-id})]
+           (pr-str (-> (:room/game room)
+                       (scrub-game-state player-name)
+                       ;; set once a player starts a replay, so every player can follow
+                       (assoc :room/next-room-id (:room/next-room-id room)))))})
 
 ;; API handlers
 (defn get-game-state [{:strs [room-id user-name]}]
@@ -92,8 +98,14 @@
     (return-rooms-state)))
 
 (defn replay-room-game [{:strs [room-id]}]
-  (swap! state/rooms rooms/replay-game {:room-id (java.util.UUID/fromString room-id)})
-  (return-rooms-state))
+  (let [room-id (java.util.UUID/fromString room-id)
+        player-names (:room/players (rooms/get-room @state/rooms {:room-id room-id}))
+        rooms (swap! state/rooms rooms/replay-game {:room-id room-id
+                                                    :game-state (dd/new-game player-names (dd/create-deck))})]
+    {:status 200
+     :headers {"Content-Type" "application/edn"
+               "Access-Control-Allow-Origin" "*"}
+     :body (pr-str {:room-id (get-in rooms [room-id :room/next-room-id])})}))
 
 (defn get-room-info [{:strs [room-id]}]
   (let [room-id (java.util.UUID/fromString room-id)

@@ -56,11 +56,17 @@
   {:pre [(= (:room/state (get-room state {:room-id room-id})) :in-game)]}
   (update state room-id assoc :room/state :post-game))
 
-(defn replay-game [state {:keys [room-id]}]
+(defn replay-game
+  "Start game-state in a new room with the same players, and point the old room at it.
+   If the old room already has a next room (another player replayed first), do nothing."
+  [state {:keys [room-id game-state]}]
   {:pre [(= (:room/state (get-room state {:room-id room-id})) :post-game)]}
-  (let [players (:room/players (get-room state {:room-id room-id}))
-        room (reduce add-player-to-room (new-room) players)]
-    (-> state
-        (add-room room)
-        (start-game {:room-id (:room/id room)}))))
+  (let [old-room (get-room state {:room-id room-id})]
+    (if (:room/next-room-id old-room)
+      state
+      (let [room (reduce add-player-to-room (new-room) (:room/players old-room))]
+        (-> state
+            (add-room room)
+            (start-game {:room-id (:room/id room) :game-state game-state})
+            (assoc-in [room-id :room/next-room-id] (:room/id room)))))))
 

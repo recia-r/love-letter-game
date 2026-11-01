@@ -80,7 +80,8 @@
                     :color "#333"}}
       (str "Username: " @state/player-name)]
      (case (first @state/page)
-       :page/game [game/game-page @state/page]
+       ;; key by room so moving to a replay room remounts the page (new polling, fresh state)
+       :page/game ^{:key (:room-id (second @state/page))} [game/game-page @state/page]
        :page/home [home/home-page])] 
     [set-name-component]))
 

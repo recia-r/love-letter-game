@@ -189,7 +189,7 @@
       "No rounds completed yet"
       (str/join " | " scores))))
 
-(defn game-status-component [state _]
+(defn game-status-component [state {:keys [replay!]}]
   [:div.game-status
    {:style {:background-color "#fff3cd"
             :padding "8px 15px"
@@ -204,6 +204,17 @@
          (str winner-text " wins the game!")]
         [:p {:style {:font-size "1em" :margin-top "10px"}}
          (str "Final Score: " (round-scores-display (:state/round-win-counts state)))]
+        [:button {:on-click replay!
+                  :style {:margin-top "15px"
+                          :margin-right "10px"
+                          :padding "10px 20px"
+                          :background-color "#4CAF50"
+                          :color "white"
+                          :border "none"
+                          :border-radius "4px"
+                          :cursor "pointer"
+                          :font-size "16px"}}
+         "Play again"]
         [:button {:on-click #(state/navigate-to! [:page/home {}])
                   :style {:margin-top "15px"
                           :padding "10px 20px"
@@ -350,10 +361,14 @@
      last-round (r/atom nil)
      interval (js/setInterval
                (fn []
-                 (when (not= (:state/current-player @game-state) @state/player-name)
+                 ;; keep polling after the game ends, to follow a replay
+                 (when (or (not= (:state/current-player @game-state) @state/player-name)
+                           (dd/game-over? @game-state))
                    (-> (state/fetch {:url (str "/api/game-state?room-id=" room-id)})
                        (.then (fn [edn-text]
-                                (reset! game-state edn-text))))))
+                                (if-let [next-room-id (:room/next-room-id edn-text)]
+                                  (state/navigate-to! [:page/game {:room-id next-room-id}])
+                                  (reset! game-state edn-text)))))))
                1000)
      play-card! (fn [card-value target-player-name guessed-value]
                   (let [form-data (doto (js/FormData.)
@@ -385,8 +400,16 @@
                                           (reset! game-state (reader/read-string edn-text))))
                                  (.catch (fn [error]
                                            (js/console.error "Error dismissing abbot reveal:" error)))))
+     replay! (fn []
+               (-> (js/fetch (str "/api/rooms/replay?room-id=" room-id) #js {:method "POST"})
+                   (.then (fn [response] (.text response)))
+                   (.then (fn [edn-text]
+                            (state/navigate-to! [:page/game {:room-id (:room-id (reader/read-string edn-text))}])))
+                   (.catch (fn [error]
+                             (js/console.error "Error starting replay:" error)))))
      fns {:play-card! play-card!
-          :draw-card! draw-card!}]
+          :draw-card! draw-card!
+          :replay! replay!}]
     (let [state @game-state
           current-round (:state/round state)
           abbot-reveal (:state/abbot-reveal state)
