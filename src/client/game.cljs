@@ -33,9 +33,12 @@
   (let [hand (dd/player-hand state player-name)
         is-current-player? (= player-name (:state/current-player state))
         has-one-card? (= (count hand) 1)
-        cards (for [card hand]
-                ^{:key (str (:card/value card) "-" (:card/name card))}
-                [card-component card (when on-card-click #(on-card-click card))])
+        ;; key by position: a hand can hold two identical cards (e.g. two Wizards)
+        cards (map-indexed
+               (fn [i card]
+                 ^{:key i}
+                 [card-component card (when on-card-click #(on-card-click card))])
+               hand)
         draw-button (when (and is-current-player? has-one-card?)
                       [:img {:key "draw-card"
                              :src "/card?value=back"

@@ -217,7 +217,8 @@
   (update state :state/discard-pile conj card))
 
 (defn remove-single-card-from-hand [state player-name]
-  (update state :state/player-hands dissoc player-name))
+  ;; keep an empty vector (rather than dissoc) so a following draw-card conjs onto a vector
+  (assoc-in state [:state/player-hands player-name] []))
 
 (defn swap-cards-in-hands [state player-name1 player-name2]
   (let [hand1 (player-hand state player-name1)
@@ -290,6 +291,14 @@
       (log {:message/content (str player-name " is now protected")
             :message/visibility (set (:state/players state))})))
 
+(defn draw-replacement-card
+  "Draw from the deck, or take the card set aside at the start of the round if the deck is empty.
+   An empty deck ends the round straight after this play, so the hidden card is not reused."
+  [state player-name]
+  (if (empty? (:state/deck state))
+    (update-in state [:state/player-hands player-name] conj (:state/hidden-card state))
+    (draw-card state player-name)))
+
 (defn play-wizard [state player-name {:keys [target-player-name]}]
   {:pre [(contains? (set (targetable-players state 5)) target-player-name)
          (not (hand-contains-queen? state player-name))]}
@@ -303,7 +312,7 @@
       (-> state
           (remove-single-card-from-hand target-player-name)
           (add-card-to-discard-pile target-card)
-          (draw-card target-player-name)
+          (draw-replacement-card target-player-name)
           (log {:message/content (str target-player-name " discarded " (:card/name target-card) " and drew a new card")
                 :message/visibility (set (:state/players state))})))))
 

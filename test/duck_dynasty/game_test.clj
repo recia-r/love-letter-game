@@ -146,7 +146,7 @@
      (dd/play-card "Alice" (dd/card-by-value 5) {:target-player-name "Bob"})
      (dd/player-hand "Bob"))
  := [(dd/card-by-value 1)] ;; bob should have drawn a 1
-
+ 
  "playing wizard bug"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck
                                    5 ;; alice deal
@@ -162,19 +162,19 @@
  := [(dd/card-by-value 1)] 
  
  "playing wizard eliminates target player when their card is king"
-(-> (dd/new-game ["Alice" "Bob" "Charlie"] (fake-deck
-                                            5 ;; alice deal
-                                            9 ;; bob deal
-                                            5 ;; charlie deal
-                                            1 ;; hidden
-                                            5 ;; alice draw 
-                                            ))
-    (dd/draw-card "Alice")
-    (dd/play-card "Alice" (dd/card-by-value 5) {:target-player-name "Bob"})
-    (dd/eliminated-player? "Bob"))
-:= true
+ (-> (dd/new-game ["Alice" "Bob" "Charlie"] (fake-deck
+                                             5 ;; alice deal
+                                             9 ;; bob deal
+                                             5 ;; charlie deal
+                                             1 ;; hidden
+                                             5 ;; alice draw 
+                                             ))
+     (dd/draw-card "Alice")
+     (dd/play-card "Alice" (dd/card-by-value 5) {:target-player-name "Bob"})
+     (dd/eliminated-player? "Bob"))
+ := true
  
-  "playing wizard eliminates self when their card is king"
+ "playing wizard eliminates self when their card is king"
  (-> (dd/new-game ["Alice" "Bob" "Charlie"] (fake-deck
                                              9 ;; alice deal
                                              4 ;; bob deal
@@ -306,4 +306,48 @@
      (dd/play-card "Alice" (dd/card-by-value 1) {:target-player-name "Bob"
                                                  :guessed-card-value 5})
      :state/round-win-counts)
- := {"Alice" 1})
+ := {"Alice" 1}
+
+ "hand stays a vector in draw order after wizard targets self (replays bug report)"
+ (-> (dd/new-game ["Recia" "Saurav" "Micah"] (fake-deck
+                                              4 ;; recia deal
+                                              3 ;; saurav deal
+                                              5 ;; micah deal
+                                              7 ;; hidden
+                                              1 ;; recia draw
+                                              3 ;; saurav draw
+                                              6 ;; micah draw
+                                              5 ;; recia draw
+                                              2 ;; recia draws after wizard
+                                              2 ;; micah draw
+                                              0 ;; recia draw
+                                              ))
+     (dd/draw-card "Recia")
+     (dd/play-card "Recia" (dd/card-by-value 1) {:target-player-name "Saurav"
+                                                 :guessed-card-value 2})
+     (dd/draw-card "Saurav")
+     (dd/play-card "Saurav" (dd/card-by-value 3) {:target-player-name "Recia"})
+     (dd/draw-card "Micah")
+     (dd/play-card "Micah" (dd/card-by-value 6) {:target-player-name "Recia"})
+     (dd/draw-card "Recia")
+     (dd/play-card "Recia" (dd/card-by-value 5) {:target-player-name "Recia"})
+     (dd/draw-card "Micah")
+     (dd/play-card "Micah" (dd/card-by-value 2) {:target-player-name "Recia"})
+     (dd/draw-card "Recia")
+     (dd/player-hand "Recia")
+     ((juxt vector? identity)))
+ := [true [(dd/card-by-value 2) (dd/card-by-value 0)]]
+
+ "wizard target takes the hidden card when the deck is empty"
+ (-> (dd/new-game ["Alice" "Bob"] (fake-deck
+                                   5 ;; alice deal
+                                   2 ;; bob deal
+                                   0 ;; hidden
+                                   1 ;; alice draw
+                                   ))
+     (assoc :state/deck [(dd/card-by-value 1)]) ;; alice draws the last card
+     (dd/draw-card "Alice")
+     (dd/play-card "Alice" (dd/card-by-value 5) {:target-player-name "Bob"})
+     :state/last-round-result
+     ((juxt :round-result/winners #(get-in % [:round-result/final-hands "Bob"]))))
+ := [["Bob"] [(dd/card-by-value 0)]])
