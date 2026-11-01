@@ -1,6 +1,5 @@
 IN PROGRESS
 
-- best of 5 / first to 3 doesn't work with 3 or 4 players (ties and spread-out wins mean nobody may reach 3 in 5 rounds)
 
 NEXT
 
@@ -17,9 +16,6 @@ winner of previous round should start next round
 trying to access a room that doesnt exist should return 404
 
 ;; review "security" - broadly, think about all the ways someone might try to cheat
-
-;; 3) make use of the malli schema to validate the state
-;;     https://github.com/metosin/malli/blob/master/docs/function-schemas.md#defn-schemas
 
 deploy it live
 

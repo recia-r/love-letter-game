@@ -44,7 +44,7 @@
                    :text-align "center"}}
      [:h1 {:style {:font-size "3em" :margin "0 0 10px 0"}} "Duck Dynasty"]
      [:p {:style {:color "#666" :margin "0"}}
-      "Outwit your rivals and win the throne. First to 3 rounds wins."]
+      "Outwit your rivals and win the throne. Most rounds won out of 5 takes the game."]
      [card-fan]
      [:div {:style {:display "flex"
                     :align-items "center"

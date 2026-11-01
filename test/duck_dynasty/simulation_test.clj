@@ -6,9 +6,14 @@
    [duck-dynasty.game :as dd]
    [hyperfiddle.rcf :as rcf]
    [malli.core :as m]
-   [malli.error :as me]))
+   [malli.error :as me]
+   [malli.instrument :as mi]))
 
 (rcf/enable!)
+
+;; check args and results of game functions with a :malli/schema on every call
+(mi/collect! {:ns ['duck-dynasty.game]})
+(mi/instrument!)
 
 (def player-pool ["Alice" "Bob" "Cara" "Dan"])
 (def max-steps 500)

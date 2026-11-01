@@ -17,7 +17,6 @@
 (def minion-guessable-card-values #{2 3 4 5 6 7 9 0})
 
 (def best-of 5)
-(def wins-needed (inc (quot best-of 2)))
 
 ;; MISC
 
@@ -53,6 +52,11 @@
    [:card/targeting-rule [:maybe [:enum :others :all]]]
    [:card/count :int]
    [:card/ability :string]])
+
+(def ExtraArgs
+  [:map
+   [:target-player-name {:optional true} [:maybe PlayerName]]
+   [:guessed-card-value {:optional true} [:maybe :int]]])
 
 (def State
   [:map
@@ -136,12 +140,26 @@
     :else nil))
 
 ;; Game logic (best of N rounds)
-(defn game-over? [state]
-  (some #(>= % wins-needed) (vals (:state/round-win-counts state))))
+(defn player-win-counts
+  "Round wins for every player, in player order, including players with none."
+  [state]
+  (map #(get (:state/round-win-counts state) % 0) (:state/players state)))
 
-(defn game-winners [state]
+(defn game-over?
+  "After best-of rounds, or earlier once the leader can't be caught.
+   A trailing player gains at most one win per remaining round."
+  [state]
+  (let [[most next-most] (sort > (player-win-counts state))
+        rounds-left (- best-of (dec (:state/round state)))]
+    (or (<= rounds-left 0)
+        (> most (+ next-most rounds-left)))))
+
+(defn game-winners
+  "Players with the most round wins; several on a tie."
+  [state]
   (when (game-over? state)
-    (mapv key (filter #(>= (val %) wins-needed) (:state/round-win-counts state)))))
+    (let [most (apply max (player-win-counts state))]
+      (filterv #(= most (get (:state/round-win-counts state) % 0)) (:state/players state)))))
 ;; STATE ACTIONS
 ;; take state and other parameters
 ;; return new state
@@ -161,7 +179,9 @@
          (log {:message/content (str "Round " (:state/round state) " started.")
                :message/visibility (set (:state/players state))}))))
 
-(defn new-game [player-names deck]
+(defn new-game
+  {:malli/schema [:=> [:cat [:sequential PlayerName] [:sequential Card]] State]}
+  [player-names deck]
   (-> {:state/players (vec player-names)
        :state/round 1
        :state/round-win-counts {}
@@ -336,9 +356,10 @@
 (defn clear-abbot-reveal [state]
   (assoc state :state/abbot-reveal nil))
 
-(defn play-card [state player-name card extra-args]
-  {:pre [(contains? (set (player-hand state player-name)) card)]
-   :malli/schema [:=> [:cat State PlayerName Card :map] State]} 
+(defn play-card
+  {:malli/schema [:=> [:cat State PlayerName Card ExtraArgs] State]}
+  [state player-name card extra-args]
+  {:pre [(contains? (set (player-hand state player-name)) card)]}
   (let [all-players (set (:state/players state))
         state (remove-card-from-hand-upon-play state player-name card)
         state (add-card-to-discard-pile state card) 

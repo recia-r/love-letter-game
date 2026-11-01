@@ -7,7 +7,8 @@
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.session.memory :as memory]
-            [duratom.core :refer [duratom]]))
+            [duratom.core :refer [duratom]]
+            [malli.instrument :as mi]))
 
 (defn match-route [request]
   (let [method (:request-method request)
@@ -101,7 +102,14 @@
 
 (defonce server (atom nil))
 
+(defn instrument-game-fns!
+  "Check the args and result of game functions that have a :malli/schema; throws when invalid."
+  []
+  (mi/collect! {:ns ['duck-dynasty.game]})
+  (mi/instrument!))
+
 (defn -main []
+  (instrument-game-fns!)
   (when @server
     (@server))
   (reset! server (http/run-server #'wrapped-app {:port 8200})))

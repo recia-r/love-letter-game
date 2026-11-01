@@ -101,7 +101,8 @@
 
    "Winner is the only active player"
    (-> state
-       (assoc :state/round-win-counts {"Charlie" 2})
+       (assoc :state/round 5 ;; final round
+              :state/round-win-counts {"Charlie" 2 "Alice" 2})
        (dd/play-card "Alice" card-to-play {:target-player-name "Bob"
                                            :guessed-card-value 5})
        (dd/play-card "Charlie" card-to-play {:target-player-name "Alice"
@@ -337,6 +338,27 @@
      (dd/player-hand "Recia")
      ((juxt vector? identity)))
  := [true [(dd/card-by-value 2) (dd/card-by-value 0)]]
+
+ "game is not over while a trailing player can still catch up"
+ (-> (dd/new-game ["Alice" "Bob" "Cara"] (dd/create-deck))
+     (assoc :state/round 4 ;; 3 rounds played, 2 left
+            :state/round-win-counts {"Alice" 2 "Bob" 0 "Cara" 1})
+     dd/game-over?)
+ := false
+
+ "game ends early when the leader can't be caught"
+ (-> (dd/new-game ["Alice" "Bob" "Cara"] (dd/create-deck))
+     (assoc :state/round 4 ;; 3 rounds played, 2 left
+            :state/round-win-counts {"Alice" 3})
+     dd/game-winners)
+ := ["Alice"]
+
+ "after 5 rounds, most round wins takes the game, shared on a tie"
+ (-> (dd/new-game ["Alice" "Bob" "Cara"] (dd/create-deck))
+     (assoc :state/round 6 ;; 5 rounds played
+            :state/round-win-counts {"Alice" 2 "Bob" 2 "Cara" 1})
+     dd/game-winners)
+ := ["Alice" "Bob"]
 
  "wizard target takes the hidden card when the deck is empty"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck
