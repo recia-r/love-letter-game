@@ -34,7 +34,7 @@
   (let [initial-cards (take (count players) deck)
         remaining-deck (drop (count players) deck)
         hidden-card (first remaining-deck)
-        final-deck (rest remaining-deck)]
+        final-deck (vec (rest remaining-deck))]
     {:deck final-deck
      :hidden-card hidden-card
      :player-hands (zipmap players (map vector initial-cards))}))
@@ -50,7 +50,7 @@
   [:map
    [:card/value :int]
    [:card/name :string]
-   [:card/targeting-rule [:enum :others :all :nil]]
+   [:card/targeting-rule [:maybe [:enum :others :all]]]
    [:card/count :int]
    [:card/ability :string]])
 
@@ -75,7 +75,7 @@
      [:round-result/final-hands [:map-of PlayerName [:vector Card]]]]]
    [:state/round :int]
    [:state/round-win-counts [:map-of PlayerName :int]]
-   [:state/game-winners [:vector PlayerName]]])
+   [:state/game-winners [:maybe [:vector PlayerName]]]])
 
 ;; STATE GETTERS
 

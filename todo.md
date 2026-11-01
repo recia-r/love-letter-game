@@ -1,19 +1,10 @@
 IN PROGRESS
 
-- add malli dep
-  - trying to get instrumentation running in simulation_test
-- set up a  test... random deck, random play of cards, schema check after every play (already done), run for 100,000 games (-- catch any that have an error at any point, return initial state, final state)
+- best of 5 / first to 3 doesn't work with 3 or 4 players (ties and spread-out wins mean nobody may reach 3 in 5 rounds)
 
 NEXT
 
 - fix shadowing of state in log ??
-- improve ui (less scrolling etc)
-- add to log on round start and end
-- log detail of minion guess
-- less white space - log to right of play zone
-- more engaging inital page
-- discard pile 
-- when round ended, there was no notification about what happened - do not automatically go to next round
 
 INBOX
 
