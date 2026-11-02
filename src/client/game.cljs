@@ -148,7 +148,8 @@
          "Cancel"]]])))
 
 (defn outer-player-component [_state _fns]
-  (let [selected-card (r/atom nil)]
+  (let [selected-card (r/atom nil)
+        notice (r/atom nil)]
     (fn [state {:keys [play-card!] :as fns}]
       (let [current-player (:state/current-player state)
             hand (dd/player-hand state current-player)
@@ -159,8 +160,16 @@
                          (apply play-card! args))
             on-card-click (when can-play?
                             (fn [card]
-                              (if (or (card-needs-target? card) (card-needs-guess? card))
+                              (reset! notice nil)
+                              (cond
+                                (and (#{5 6} (:card/value card)) (dd/hand-contains-queen? state current-player))
+                                (reset! notice (str "You can't play the " (:card/name card)
+                                                    " while you have the Queen. Play the Queen instead."))
+
+                                (or (card-needs-target? card) (card-needs-guess? card))
                                 (reset! selected-card card)
+
+                                :else
                                 (play-card! (:card/value card) nil nil))))]
         (when (not (dd/game-over? state))
           [:div.current-player
@@ -169,6 +178,9 @@
                     :border-radius "8px"
                     :margin "10px 0"}}
            [player-hand-component state fns @state/player-name on-card-click]
+           (when (and can-play? @notice)
+             [:p {:style {:text-align "center" :color "#c62828" :font-weight "bold"}}
+              @notice])
            (when (and can-play? (some #{@selected-card} hand))
              ^{:key (:card/value @selected-card)}
              [play-card-form state
@@ -206,7 +218,6 @@
          (str "Final Score: " (round-scores-display (:state/round-win-counts state)))]
         [:button {:on-click replay!
                   :style {:margin-top "15px"
-                          :margin-right "10px"
                           :padding "10px 20px"
                           :background-color "#4CAF50"
                           :color "white"
@@ -214,17 +225,7 @@
                           :border-radius "4px"
                           :cursor "pointer"
                           :font-size "16px"}}
-         "Play again"]
-        [:button {:on-click #(state/navigate-to! [:page/home {}])
-                  :style {:margin-top "15px"
-                          :padding "10px 20px"
-                          :background-color "#2196F3"
-                          :color "white"
-                          :border "none"
-                          :border-radius "4px"
-                          :cursor "pointer"
-                          :font-size "16px"}}
-         "Back to Home"]])
+         "Play again"]])
      [:div {:style {:display "flex" :flex-wrap "wrap" :column-gap "20px"}}
       [:p {:style {:margin "4px 0"}}
        (str "Round " (:state/round state) " of " dd/best-of)]
@@ -311,24 +312,26 @@
   [log]
   (->> log (drop-last 2) (take-last 2)))
 
-(defn round-result-component [{:round-result/keys [round reason winners final-hands]} log]
-  [:div {:style {:text-align "center"
-                 :margin-bottom "30px"}}
-   [:h2 {:style {:margin "0 0 10px 0"}}
-    (str "Round " round " won by " (str/join " and " winners))]
-   (when (= reason :deck-empty)
-     [:p {:style {:margin "0 0 10px 0" :color "#555"}}
-      "The deck ran out, so the highest card wins."])
-   (for [[i entry] (map-indexed vector (round-ending-entries log))]
-     ^{:key i}
-     [:p {:style {:margin "0 0 5px 0" :color "#333"}} (:message/content entry)])
-   (when (= reason :deck-empty)
-     [:div {:style {:display "flex" :gap "10px" :justify-content "center"}}
-      (for [[player-name [card]] final-hands]
-        ^{:key player-name}
-        [:div
-         [:p {:style {:margin "0 0 5px 0"}} player-name]
-         [card-component card]])])])
+(defn round-result-component [round {:round-result/keys [winners final-hands]} log]
+  ;; more than one player left means the deck ran out
+  (let [deck-empty? (> (count final-hands) 1)]
+    [:div {:style {:text-align "center"
+                   :margin-bottom "30px"}}
+     [:h2 {:style {:margin "0 0 10px 0"}}
+      (str "Round " round " won by " (str/join " and " winners))]
+     (when deck-empty?
+       [:p {:style {:margin "0 0 10px 0" :color "#555"}}
+        "The deck ran out, so the highest card wins."])
+     (for [[i entry] (map-indexed vector (round-ending-entries log))]
+       ^{:key i}
+       [:p {:style {:margin "0 0 5px 0" :color "#333"}} (:message/content entry)])
+     (when deck-empty?
+       [:div {:style {:display "flex" :gap "10px" :justify-content "center"}}
+        (for [[player-name [card]] final-hands]
+          ^{:key player-name}
+          [:div
+           [:p {:style {:margin "0 0 5px 0"}} player-name]
+           [card-component card]])])]))
 
 (defn new-round-screen [round last-round-result log on-start]
   [:div {:style {:display "flex"
@@ -338,7 +341,7 @@
                  :min-height "300px"
                  :padding "40px"}}
    (when last-round-result
-     [round-result-component last-round-result log])
+     [round-result-component (dec round) last-round-result log])
    [:h1 {:style {:font-size "2.5em"
                  :margin-bottom "30px"
                  :color "#333"}}
@@ -380,7 +383,11 @@
                     (let [options (clj->js {:method "POST"
                                             :body form-data})]
                       (-> (js/fetch (str "/api/play-card?room-id=" room-id) options)
-                          (.then (fn [response] (.text response)))
+                          (.then (fn [response]
+                                   ;; a refused move returns an error page, not a game: keep the current game
+                                   (if (.-ok response)
+                                     (.text response)
+                                     (throw (js/Error. (str "Move refused: " (.-status response)))))))
                           (.then (fn [edn-text]
                                    (reset! game-state (reader/read-string edn-text))))
                           (.catch (fn [error]
