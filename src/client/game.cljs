@@ -433,8 +433,15 @@
         "← Home"]
        (when my-abbot-reveal
          [abbot-reveal-modal my-abbot-reveal dismiss-abbot-reveal!])
-       (if (and (not @round-started) (empty? (:state/discard-pile state)) (not (dd/game-over? state)))
+       (cond
+         (:error state)
+         [:p {:style {:color "#666" :font-style "italic"}}
+          "This game no longer exists. Go back home to start or join another."]
+
+         (and (not @round-started) (empty? (:state/discard-pile state)) (not (dd/game-over? state)))
          [new-round-screen current-round (:state/last-round-result state) (:state/log state) #(reset! round-started true)]
+
+         :else
          [:div {:style {:display "flex" :gap "20px" :align-items "flex-start"}}
           [:div {:style {:flex "1" :min-width "0"}}
            [game-status-component state fns]

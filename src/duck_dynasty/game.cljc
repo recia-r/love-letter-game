@@ -312,6 +312,15 @@
       (log {:message/content (str player-name " is now protected")
             :message/visibility (set (:state/players state))})))
 
+(defn draw-for-turn
+  "The draw at the start of a turn. Does nothing unless it's player-name's turn and they
+   hold one card, so a repeated request (e.g. a double-click) can't draw a second card."
+  [state player-name]
+  (if (and (= player-name (:state/current-player state))
+           (= 1 (count (player-hand state player-name))))
+    (draw-card state player-name)
+    state))
+
 (defn draw-replacement-card
   "Draw from the deck, or take the card set aside at the start of the round if the deck is empty.
    An empty deck ends the round straight after this play, so the hidden card is not reused."

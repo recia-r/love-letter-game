@@ -39,14 +39,18 @@
       (update :state/log (fn [log] (filterv #(contains? (:message/visibility %) player-name) log)))))
 
 (defn return-game-state [room-id player-name]
-  {:status 200
-   :headers {"Content-Type" "application/edn"
-             "Access-Control-Allow-Origin" "*"}
-   :body (let [room (rooms/get-room @state/rooms {:room-id room-id})]
-           (pr-str (-> (:room/game room)
+  (if-let [room (rooms/get-room @state/rooms {:room-id room-id})]
+    {:status 200
+     :headers {"Content-Type" "application/edn"
+               "Access-Control-Allow-Origin" "*"}
+     :body (pr-str (-> (:room/game room)
                        (scrub-game-state player-name)
                        ;; set once a player starts a replay, so every player can follow
-                       (assoc :room/next-room-id (:room/next-room-id room)))))})
+                       (assoc :room/next-room-id (:room/next-room-id room))))}
+    {:status 404
+     :headers {"Content-Type" "application/edn"
+               "Access-Control-Allow-Origin" "*"}
+     :body (pr-str {:error "Room not found"})}))
 
 ;; API handlers
 (defn get-game-state [{:strs [room-id user-name]}]
@@ -66,7 +70,7 @@
 
 (defn draw-card [{:strs [user-name room-id]}]
   (let [room-id (java.util.UUID/fromString room-id)]
-    (swap! state/rooms update-in [room-id :room/game] dd/draw-card user-name)
+    (swap! state/rooms update-in [room-id :room/game] dd/draw-for-turn user-name)
     (return-game-state room-id user-name)))
 
 (defn dismiss-abbot-reveal [{:strs [room-id user-name]}]
