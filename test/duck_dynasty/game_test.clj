@@ -260,9 +260,24 @@
                                    ))
      (dd/draw-card "Alice")
      (dd/play-card "Alice" (dd/card-by-value 2) {:target-player-name "Bob"})
-     ;; log 0 is "Round 1 started.", so the play entry is at index 1
+     ;; log 0 is "Round 1 begins.", so the play entry is at index 1
      (get-in [:state/log 1 :message/content]))
- := "Alice played 2 - Abbot"
+ := "Alice played the Abbot (2) on Bob."
+
+ "Abbot: everyone sees the look, only the two players see the card"
+ (-> (dd/new-game ["Alice" "Bob" "Carol"] (fake-deck
+                                           2 ;; alice deal
+                                           3 ;; bob deal
+                                           4 ;; carol deal
+                                           1 ;; hidden
+                                           5 ;; alice draw
+                                           ))
+     (dd/draw-card "Alice")
+     (dd/play-card "Alice" (dd/card-by-value 2) {:target-player-name "Bob"})
+     :state/log
+     (->> (drop 2) (map (juxt :message/content :message/visibility))))
+ := [["Alice looked at Bob's card. It is the Rogue (3)." #{"Alice" "Bob"}]
+     ["Alice looked at Bob's card." #{"Carol"}]]
 
  "Log visibility includes all players"
  (-> (dd/new-game ["Alice" "Bob"] (fake-deck
@@ -273,7 +288,7 @@
                                    ))
      (dd/draw-card "Alice")
      (dd/play-card "Alice" (dd/card-by-value 2) {:target-player-name "Bob"})
-     ;; log 0 is "Round 1 started.", so the play entry is at index 1
+     ;; log 0 is "Round 1 begins.", so the play entry is at index 1
      (get-in [:state/log 1 :message/visibility]))
  := #{"Alice" "Bob"}
 

@@ -307,7 +307,7 @@
 
 (defn round-ending-entries
   "The last 2 log entries of the previous round. The log ends with
-   \"Round N ended\" and \"Round N+1 started\", so skip those."
+   \"Round N is over\" and \"Round N+1 begins\", so skip those."
   [log]
   (->> log (drop-last 2) (take-last 2)))
 
