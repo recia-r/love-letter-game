@@ -395,7 +395,11 @@
 
      draw-card! (fn []
                   (-> (js/fetch (str "/api/draw-card?room-id=" room-id) #js {:method "POST"})
-                      (.then (fn [response] (.text response)))
+                      (.then (fn [response]
+                               ;; a refused draw (e.g. a double-click) returns an error page: keep the current game
+                               (if (.-ok response)
+                                 (.text response)
+                                 (throw (js/Error. (str "Draw refused: " (.-status response)))))))
                       (.then (fn [edn-text]
                                (reset! game-state (reader/read-string edn-text))))
                       (.catch (fn [error]

@@ -389,15 +389,13 @@
      ((juxt :round-result/winners #(get-in % [:round-result/final-hands "Bob"]))))
  := [["Bob"] [(dd/card-by-value 0)]]
 
- "drawing twice at the start of a turn only draws once (e.g. double-click)"
+ "drawing twice at the start of a turn is refused (e.g. double-click)"
  (-> (dd/new-game ["Alice" "Bob"] (dd/create-deck))
      (dd/draw-for-turn "Alice")
-     (dd/draw-for-turn "Alice")
-     (dd/player-hand "Alice")
-     count)
- := 2
+     (dd/draw-for-turn "Alice"))
+ :throws java.lang.AssertionError
 
  "a player can't draw when it isn't their turn"
- (let [state (dd/new-game ["Alice" "Bob"] (dd/create-deck))]
-   (= state (dd/draw-for-turn state "Bob")))
- := true)
+ (-> (dd/new-game ["Alice" "Bob"] (dd/create-deck))
+     (dd/draw-for-turn "Bob"))
+ :throws java.lang.AssertionError)
